@@ -1,0 +1,490 @@
+{
+  "name": "vscode-infinite-pm",
+  "displayName": "infinite.pm",
+  "description": "ipmt language support and embed-on-save for infinite.pm (Infinite Process Modeling)",
+  "version": "0.4.1",
+  "publisher": "ipm",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/infinite-pm/vscode-ipm.git"
+  },
+  "engines": {
+    "vscode": "^1.72.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization"
+  ],
+  "keywords": [
+    "ipmt",
+    "ipm",
+    "infinite.pm",
+    "semantic spacetime",
+    "language server"
+  ],
+  "activationEvents": [
+    "onLanguage:ipmt",
+    "onLanguage:markdown"
+  ],
+  "main": "./dist/extension/index.js",
+  "contributes": {
+    "markdown.markdownItPlugins": true,
+    "markdown.previewStyles": [
+      "./media/ipm-preview.css"
+    ],
+    "languages": [
+      {
+        "id": "ipmt",
+        "aliases": [
+          "IPMT",
+          "ipmt"
+        ],
+        "extensions": [
+          ".ipmt"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ipmt",
+        "scopeName": "source.ipmt",
+        "path": "./syntaxes/ipmt.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.ipmt.codeblock",
+        "path": "./syntaxes/ipmt.markdown.injection.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.markdown.ipmt": "ipmt"
+        }
+      }
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "ipmEvent",
+        "superType": "class",
+        "description": "An ipmt event node — fast, transient happening."
+      },
+      {
+        "id": "ipmThing",
+        "superType": "interface",
+        "description": "An ipmt thing node — slow, persistent participant."
+      },
+      {
+        "id": "ipmConcept",
+        "superType": "enum",
+        "description": "An ipmt concept — invariant property events / things can express."
+      },
+      {
+        "id": "ipmRelation",
+        "description": "Relation letter (L / P / X / N) inside an explicit arrow."
+      },
+      {
+        "id": "ipmArrow",
+        "description": "Arrow (-->, <--, ---, --::P-->, etc.)."
+      },
+      {
+        "id": "ipmTypeMarker",
+        "description": "Type marker (::e ::t ::c ::a ::tip)."
+      },
+      {
+        "id": "ipmComment",
+        "description": "ipmt comment line."
+      },
+      {
+        "id": "ipmString",
+        "description": "Quoted ipmt string."
+      },
+      {
+        "id": "ipmTooltip",
+        "description": "Quoted-string tooltip on an edge (--\"text\"--) or node (\"text\" ::tip)."
+      },
+      {
+        "id": "ipmUnresolved",
+        "description": "Unresolved node — `::?` prefix or an Unresolved-kind node title (grey)."
+      }
+    ],
+    "semanticTokenModifiers": [
+      {
+        "id": "alias",
+        "description": "The alias portion of a node — the short, identifier-shaped form (e.g. `wearB`). When a node has an alias, the alias is the canonical reference; themes color it as the *primary* form."
+      },
+      {
+        "id": "leadsTo",
+        "description": "Arrow whose SST relation is LEADS-TO (orange)."
+      },
+      {
+        "id": "partOf",
+        "description": "Arrow whose SST relation is PART-OF (green)."
+      },
+      {
+        "id": "expresses",
+        "description": "Arrow whose SST relation is EXPRESSES (blue dashed)."
+      },
+      {
+        "id": "nearTo",
+        "description": "Arrow whose SST relation is NEAR-TO (gray dotted, undirected)."
+      },
+      {
+        "id": "hasAlias",
+        "description": "Marks the long-label token of a node that ALSO has an alias. Themes use this to dim the long label so the alias (the canonical handle) reads as the primary form."
+      },
+      {
+        "id": "marker",
+        "description": "Marks a syntactic `::e` / `::t` / `::c` kind marker (vs. the identifier it labels). Themes use it to bold the marker without making the surrounding identifier bold."
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "ipmt",
+        "scopes": {
+          "ipmEvent": [
+            "entity.name.type.event.ipmt"
+          ],
+          "ipmThing": [
+            "entity.name.type.thing.ipmt"
+          ],
+          "ipmConcept": [
+            "entity.name.type.concept.ipmt"
+          ],
+          "ipmRelation": [
+            "storage.type.relation.ipmt"
+          ],
+          "ipmArrow": [
+            "keyword.operator.arrow.ipmt"
+          ],
+          "ipmTypeMarker": [
+            "storage.type.node.ipmt"
+          ],
+          "ipmComment": [
+            "comment.line.number-sign.ipmt"
+          ],
+          "ipmString": [
+            "string.quoted.double.ipmt"
+          ],
+          "ipmTooltip": [
+            "string.quoted.double.tooltip.ipmt"
+          ]
+        }
+      },
+      {
+        "language": "markdown",
+        "scopes": {
+          "ipmEvent": [
+            "entity.name.type.event.ipmt"
+          ],
+          "ipmThing": [
+            "entity.name.type.thing.ipmt"
+          ],
+          "ipmConcept": [
+            "entity.name.type.concept.ipmt"
+          ],
+          "ipmArrow": [
+            "keyword.operator.arrow.ipmt"
+          ],
+          "ipmTooltip": [
+            "string.quoted.double.tooltip.ipmt"
+          ]
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "editor.semanticTokenColorCustomizations": {
+        "rules": {
+          "ipmEvent": {
+            "foreground": "#ff8000"
+          },
+          "ipmEvent.alias": {
+            "foreground": "#ff8000"
+          },
+          "ipmEvent.hasAlias": {
+            "foreground": "#ffaa55"
+          },
+          "ipmEvent.marker": {
+            "foreground": "#ff8000",
+            "bold": true
+          },
+          "ipmThing": {
+            "foreground": "#4d8a3a"
+          },
+          "ipmThing.alias": {
+            "foreground": "#4d8a3a"
+          },
+          "ipmThing.hasAlias": {
+            "foreground": "#82b366"
+          },
+          "ipmThing.marker": {
+            "foreground": "#4d8a3a",
+            "bold": true
+          },
+          "ipmConcept": {
+            "foreground": "#6c8ebf"
+          },
+          "ipmConcept.alias": {
+            "foreground": "#6c8ebf"
+          },
+          "ipmConcept.hasAlias": {
+            "foreground": "#9bb4d6"
+          },
+          "ipmConcept.marker": {
+            "foreground": "#6c8ebf",
+            "bold": true
+          },
+          "ipmArrow": {
+            "foreground": "#d4d4d4",
+            "bold": true
+          },
+          "ipmArrow.leadsTo": {
+            "foreground": "#ff8000",
+            "bold": true
+          },
+          "ipmArrow.partOf": {
+            "foreground": "#4d8a3a",
+            "bold": true
+          },
+          "ipmArrow.expresses": {
+            "foreground": "#6c8ebf",
+            "bold": true
+          },
+          "ipmArrow.nearTo": {
+            "foreground": "#aaaaaa",
+            "bold": true
+          },
+          "ipmTypeMarker": {
+            "foreground": "#b08fff"
+          },
+          "ipmRelation": {
+            "foreground": "#b08fff"
+          },
+          "ipmComment": {
+            "foreground": "#808080",
+            "italic": true
+          },
+          "ipmString": {
+            "foreground": "#ce9178"
+          },
+          "ipmTooltip": {
+            "foreground": "#b58900",
+            "italic": true
+          },
+          "ipmUnresolved": {
+            "foreground": "#8a8a8a"
+          }
+        }
+      }
+    },
+    "configuration": {
+      "title": "infinite.pm",
+      "properties": {
+        "ipm.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the ipm-rpc binary. If empty, searches PATH for 'ipm-rpc'. If still not found, falls back to the bundled binary inside the extension."
+        },
+        "ipm.embedOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "When you save a .md file with ipmt blocks, refresh the committed SVGs + marker hashes via the LSP server's ipm.embed command."
+        },
+        "ipm.embedDebounceMs": {
+          "type": "number",
+          "default": 0,
+          "description": "Debounce period before embed-on-save fires. 0 = no debounce; embed runs on every save."
+        },
+        "ipm.liveRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Refresh ipmt diagrams in the markdown preview as you type, without requiring a save. The LSP server renders each ipmt block from the current buffer and the preview swaps the rendered <img> for a data: URL until the next save."
+        },
+        "ipm.liveRefreshDebounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "Idle time (ms) after the last keystroke before live-refresh fires. 0 = fire immediately on every change (heavier). 300 ms is the default — feels instantaneous and avoids re-rendering during fast typing."
+        },
+        "ipm.restartOnBinaryChange": {
+          "type": "boolean",
+          "default": true,
+          "description": "Watch the resolved ipm-rpc binary path; auto-restart the language server when the file changes (e.g. after `go install ./cmd/ipm-rpc`). Disable if your platform's fs.watch causes spurious restarts."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "infinite.pm.restartServer",
+        "title": "Restart Language Server",
+        "category": "infinite.pm"
+      },
+      {
+        "command": "infinite.pm.showServerInfo",
+        "title": "Show Server Info (path + version)",
+        "category": "infinite.pm"
+      },
+      {
+        "command": "infinite.pm.openPreview",
+        "title": "Open Preview",
+        "category": "infinite.pm",
+        "icon": {
+          "light": "./media/preview-light.svg",
+          "dark": "./media/preview-dark.svg"
+        }
+      },
+      {
+        "command": "infinite.pm.openPreviewToSide",
+        "title": "Open Preview to the Side",
+        "category": "infinite.pm",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "infinite.pm.showSource",
+        "title": "Reopen as source file",
+        "category": "infinite.pm",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "infinite.pm.embedCurrentFile",
+        "title": "Force Re-embed Current File",
+        "category": "infinite.pm"
+      },
+      {
+        "command": "infinite.pm.embedAllInWorkspace",
+        "title": "Force Re-embed All Markdown Files in Workspace",
+        "category": "infinite.pm"
+      },
+      {
+        "command": "infinite.pm.embedAllInRepo",
+        "title": "Force Re-embed All Markdown Files in Current Repo",
+        "category": "infinite.pm"
+      },
+      {
+        "command": "infinite.pm.copyPath",
+        "title": "Copy Path",
+        "category": "infinite.pm"
+      },
+      {
+        "command": "infinite.pm.copyRelativePath",
+        "title": "Copy Relative Path",
+        "category": "infinite.pm"
+      },
+      {
+        "command": "infinite.pm.revealInExplorer",
+        "title": "Reveal in Explorer View",
+        "category": "infinite.pm"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "infinite.pm.openPreview",
+          "group": "navigation@1",
+          "when": "editorLangId == ipmt"
+        },
+        {
+          "command": "infinite.pm.openPreviewToSide",
+          "group": "navigation@2",
+          "when": "editorLangId == ipmt"
+        },
+        {
+          "command": "infinite.pm.showSource",
+          "group": "navigation@1",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        },
+        {
+          "command": "infinite.pm.copyPath",
+          "group": "9_cutcopypaste@1",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        },
+        {
+          "command": "infinite.pm.copyRelativePath",
+          "group": "9_cutcopypaste@2",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        },
+        {
+          "command": "infinite.pm.revealInExplorer",
+          "group": "9_files@1",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "infinite.pm.copyPath",
+          "group": "1_cutcopypaste@1",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        },
+        {
+          "command": "infinite.pm.copyRelativePath",
+          "group": "1_cutcopypaste@2",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        },
+        {
+          "command": "infinite.pm.revealInExplorer",
+          "group": "2_files@1",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "infinite.pm.openPreview",
+          "when": "editorLangId == ipmt"
+        },
+        {
+          "command": "infinite.pm.openPreviewToSide",
+          "when": "editorLangId == ipmt"
+        },
+        {
+          "command": "infinite.pm.showSource",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        },
+        {
+          "command": "infinite.pm.embedCurrentFile",
+          "when": "editorLangId == markdown || activeWebviewPanelId == 'markdown.preview' || activeCustomEditorId == 'vscode.markdown.preview.editor'"
+        },
+        {
+          "command": "infinite.pm.embedAllInWorkspace"
+        },
+        {
+          "command": "infinite.pm.embedAllInRepo",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "infinite.pm.copyPath",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        },
+        {
+          "command": "infinite.pm.copyRelativePath",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        },
+        {
+          "command": "infinite.pm.revealInExplorer",
+          "when": "activeWebviewPanelId == 'ipmtPreview'"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "gen-palette": "tsx scripts/gen-palette.ts",
+    "gen-palette:check": "tsx scripts/gen-palette.ts --check",
+    "build": "npm run gen-palette:check && webpack --mode production",
+    "watch": "webpack --mode development --watch",
+    "package": "vsce package",
+    "test": "npm run gen-palette:check && node --import tsx --test src/__tests__/*.test.ts",
+    "ci": "npm run build && npm test && npm run package"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.72.0",
+    "@vscode/vsce": "^3.7.1",
+    "markdown-it": "^14.1.0",
+    "ts-loader": "^9.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.0.0",
+    "vscode-languageclient": "^9.0.0",
+    "webpack": "^5.80.0",
+    "webpack-cli": "^5.0.0"
+  }
+}
