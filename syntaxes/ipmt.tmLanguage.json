@@ -1,0 +1,68 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ipmt",
+  "scopeName": "source.ipmt",
+  "fileTypes": ["ipmt"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#arrows" },
+    { "include": "#typeMarkers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.ipmt",
+      "match": "^\\s*#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.ipmt",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.ipmt",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "arrows": {
+      "patterns": [
+        {
+          "comment": "Explicit-relation arrow: --::P-->, --::L-->, --::X-->, --::N--",
+          "match": "(--)(::)([PLXN])(--)(>?)",
+          "captures": {
+            "1": { "name": "keyword.operator.arrow.ipmt" },
+            "2": { "name": "storage.type.relation.ipmt" },
+            "3": { "name": "storage.type.relation.ipmt" },
+            "4": { "name": "keyword.operator.arrow.ipmt" },
+            "5": { "name": "keyword.operator.arrow.ipmt" }
+          }
+        },
+        {
+          "comment": "Forward / reverse arrow",
+          "name": "keyword.operator.arrow.ipmt",
+          "match": "(?:-->|<--)"
+        },
+        {
+          "comment": "Near-to (undirected)",
+          "name": "keyword.operator.near.ipmt",
+          "match": "---"
+        }
+      ]
+    },
+    "typeMarkers": {
+      "patterns": [
+        {
+          "comment": "Type / alias / tooltip markers",
+          "name": "storage.type.node.ipmt",
+          "match": "::(e|t|c|a|tip)\\b"
+        },
+        {
+          "comment": "Undecided / unresolved kind marker (::?<letters>, 2-3 of e/t/c). The LSP semantic tokens paint each letter with its own kind color; this match is the editor-pane fallback before semantic tokens arrive.",
+          "name": "storage.type.node.ipmt",
+          "match": "::\\?[etc]{2,3}\\b"
+        }
+      ]
+    }
+  }
+}
