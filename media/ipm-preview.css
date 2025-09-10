@@ -1,0 +1,60 @@
+/* Syntax highlighting for ```ipmt``` blocks in the VS Code markdown
+ * preview. Colors MIRROR the editor-side
+ * `editor.semanticTokenColorCustomizations` defaults in package.json so
+ * both panes use the exact same palette.
+ *
+ * The token color rules below are GENERATED from src/palette.ts by
+ * scripts/gen-palette.ts. Edit the palette there and run
+ * `npm run gen-palette` — do not hand-edit between the GEN markers.
+ *
+ * The non-generated rules (`pre.ipmt-block` background etc.) are
+ * preserved across generator runs.
+ */
+
+/* Match the editor pane's background + default foreground for ipmt
+ * code blocks. Sourcing from VS Code's CSS variables keeps the match
+ * across themes and theme switches. */
+pre.ipmt-block {
+    background: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+}
+pre.ipmt-block > code.language-ipmt {
+    background: transparent;
+    color: inherit;
+}
+
+/* Inline ipmt (`<!--ipmt-->` + backtick code span in prose): drop the
+ * inline-code grey background so simultaneous contrast doesn't shift
+ * the per-token colors away from how the same tokens look in the
+ * editor pane / fenced blocks. */
+code.language-ipmt {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* GEN-START palette — do not edit; run `npm run gen-palette` */
+.ipm-e-title         { color: #ff8000; }
+.ipm-e-alias         { color: #ff8000; }
+.ipm-e-title-aliased { color: #ffaa55; }
+.ipm-e-marker        { color: #ff8000; font-weight: bold; }
+.ipm-t-title         { color: #4d8a3a; }
+.ipm-t-alias         { color: #4d8a3a; }
+.ipm-t-title-aliased { color: #82b366; }
+.ipm-t-marker        { color: #4d8a3a; font-weight: bold; }
+.ipm-c-title         { color: #6c8ebf; }
+.ipm-c-alias         { color: #6c8ebf; }
+.ipm-c-title-aliased { color: #9bb4d6; }
+.ipm-c-marker        { color: #6c8ebf; font-weight: bold; }
+.ipm-arrow           { color: #d4d4d4; font-weight: bold; }
+.ipm-L               { color: #ff8000; font-weight: bold; }
+.ipm-P               { color: #4d8a3a; font-weight: bold; }
+.ipm-X               { color: #6c8ebf; font-weight: bold; }
+.ipm-N               { color: #aaaaaa; font-weight: bold; }
+.ipm-type-marker     { color: #b08fff; }
+.ipm-relation        { color: #b08fff; }
+.ipm-comment         { color: #808080; font-style: italic; }
+.ipm-string          { color: #ce9178; }
+.ipm-tooltip         { color: #b58900; font-style: italic; }
+.ipm-unresolved      { color: #8a8a8a; }
+/* GEN-END palette */
