@@ -16,7 +16,7 @@
 // (the user is done with that file).
 
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import { LanguageClient, State } from 'vscode-languageclient/node';
 
 // LSP-emitted semantic-token record for one block, block-relative.
 // Matches the Go `bufferToken` struct in cmd/ipm-rpc/embed_buffer.go.
@@ -249,8 +249,26 @@ export function wireLiveRefresh(
         if (doc.languageId !== 'markdown') return;
         cache.delete(doc.uri.toString());
     });
-    ctx.subscriptions.push(subChange, subOpen, subSave, subClose);
-    disposables?.push(subChange, subOpen, subSave, subClose);
+    // Server-crash recovery. vscode-languageclient auto-respawns a crashed
+    // server process ("Connection to server got closed. Server will
+    // restart.") — but every embedBuffer that was in flight when it died
+    // was rejected, so the LiveCache keeps whatever the PREVIOUS server
+    // rendered and the preview shows stale SVGs until the user closes and
+    // reopens the file. Seen 2026-07-08: all six eager fires after a
+    // binary-change restart died with "Pending response rejected since
+    // connection got disposed" when the new server crashed mid-batch.
+    // When the client transitions back to Running, re-fire an eager
+    // embedBuffer for every open markdown document so the preview
+    // converges on the live server's output.
+    const subState = client.onDidChangeState(e => {
+        if (e.newState !== State.Running) return;
+        log.appendLine('[live-refresh] client back to Running; re-firing embedBuffer for open markdown docs');
+        for (const doc of vscode.workspace.textDocuments) {
+            if (doc.languageId === 'markdown') void fireNow(doc);
+        }
+    });
+    ctx.subscriptions.push(subChange, subOpen, subSave, subClose, subState);
+    disposables?.push(subChange, subOpen, subSave, subClose, subState);
 
     // Catch up on any markdown documents that were already open when
     // the extension activated. Without this, files visible at startup
@@ -270,6 +288,24 @@ export function wireLiveRefresh(
 // asynchronously and our activation-time eager-fire can race with it.
 const EMBED_NOT_OPEN_RETRIES = 6;
 const EMBED_NOT_OPEN_RETRY_DELAY_MS = 200;
+
+// isTransientEmbedError decides whether a failed embedBuffer call is worth
+// retrying. Two transient shapes:
+//   - "document not open in server": didOpen hasn't reached the server yet
+//     (startup / restart race).
+//   - connection died mid-request: the server process crashed and
+//     vscode-languageclient is auto-respawning it. The retry lands on the
+//     fresh connection (didOpen is re-sent on restart).
+// Anything else (parse errors, bad args) won't fix itself by waiting.
+// Exported for tests.
+export function isTransientEmbedError(err: unknown): boolean {
+    const msg = String(err).toLowerCase();
+    return msg.includes('document not open in server')
+        || msg.includes('connection got disposed')
+        || msg.includes('connection is disposed')
+        || msg.includes('connection got closed')
+        || msg.includes('client is not running');
+}
 
 async function runEmbedBuffer(
     client: LanguageClient,
@@ -294,18 +330,15 @@ async function runEmbedBuffer(
             break;
         } catch (err) {
             lastErr = err;
-            // Retry only the "document not open" race. Other errors
-            // (parse, network) won't fix themselves by waiting.
-            const msg = String(err);
-            if (!msg.includes('document not open in server')) {
-                // Non-race error (parse, network, etc.): stop retrying and
-                // let the post-loop `if (lastErr) throw lastErr` (inside the
-                // outer try) route it to the catch/log below, instead of
+            if (!isTransientEmbedError(err)) {
+                // Non-transient error (parse, bad args, etc.): stop retrying
+                // and let the post-loop `if (lastErr) throw lastErr` (inside
+                // the outer try) route it to the catch/log below, instead of
                 // escaping runEmbedBuffer as an unhandled rejection.
                 break;
             }
             if (attempt < EMBED_NOT_OPEN_RETRIES) {
-                log.appendLine(`[live-refresh] doc not open yet on attempt ${attempt + 1}; retrying after ${EMBED_NOT_OPEN_RETRY_DELAY_MS}ms`);
+                log.appendLine(`[live-refresh] transient failure on attempt ${attempt + 1} (${String(err).slice(0, 120)}); retrying after ${EMBED_NOT_OPEN_RETRY_DELAY_MS}ms`);
                 await new Promise(resolve => setTimeout(resolve, EMBED_NOT_OPEN_RETRY_DELAY_MS));
             }
         }

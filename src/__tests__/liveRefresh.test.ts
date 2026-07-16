@@ -35,7 +35,7 @@ moduleAny._resolveFilename = function (this: unknown, request: string, ...rest: 
 
 test.after(() => { moduleAny._resolveFilename = origResolve; });
 
-const { LiveCache } = require('../extension/liveRefresh') as typeof import('../extension/liveRefresh');
+const { LiveCache, isTransientEmbedError } = require('../extension/liveRefresh') as typeof import('../extension/liveRefresh');
 
 test('set + get round-trip', () => {
     const c = new LiveCache();
@@ -152,4 +152,21 @@ test('delete(uri) evicts tokens for that URI too', () => {
     c.setTokensForSource('file:///a.md', 'src', [{ line: 0, col: 0, len: 3, type: 'ipmEvent' }]);
     c.delete('file:///a.md');
     assert.equal(c.getTokensForSource('file:///a.md', 'src'), undefined);
+});
+
+test('isTransientEmbedError: retries didOpen races and dead-connection errors', () => {
+    // Server hasn't seen didOpen yet (startup / restart race).
+    assert.ok(isTransientEmbedError(new Error('document not open in server: file:///a.md (run textDocument/didOpen first)')));
+    // Server process died mid-request; vscode-languageclient auto-respawns
+    // it and the retry lands on the fresh connection.
+    assert.ok(isTransientEmbedError(new Error('Pending response rejected since connection got disposed')));
+    assert.ok(isTransientEmbedError(new Error('Connection is disposed.')));
+    assert.ok(isTransientEmbedError(new Error('Connection got closed')));
+    assert.ok(isTransientEmbedError(new Error('Client is not running and can\'t be stopped.')));
+});
+
+test('isTransientEmbedError: does not retry permanent errors', () => {
+    assert.ok(!isTransientEmbedError(new Error('analyze: parse error at line 3')));
+    assert.ok(!isTransientEmbedError(new Error('missing or empty \'uri\'')));
+    assert.ok(!isTransientEmbedError(new Error('resolve uri: not a file scheme')));
 });
