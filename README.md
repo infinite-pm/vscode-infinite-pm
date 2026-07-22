@@ -112,7 +112,7 @@ The token palette's single source of truth lives in the [ipm-tools](https://gith
 
 ## Replaces `vscode-ipm-preview`
 
-This extension supersedes the older `vscode-ipm-preview`. The old extension is deprecated on the marketplace with a redirect to this one; users with custom settings under `ipm-preview.*` need to migrate them to `ipm.*`.
+This extension supersedes the older `vscode-ipm-preview`. If you used it: uninstall the old extension and migrate any custom settings under `ipm-preview.*` to their `ipm.*` equivalents.
 
 ## Authors & credits
 
