@@ -15,13 +15,16 @@ Language support for [Infinite Process Modeling (infinite.pm)](https://infinite.
 
 ## Installation
 
-The extension's LSP features are powered by a Go binary, **`ipm-rpc`**, which is
-**bundled in the published `.vsix`** — there's nothing extra to install:
+Download the `.vsix` for your platform from the
+[GitHub Releases page](https://github.com/infinite-pm/vscode-ipm/releases)
+(CI builds one per platform), then install it:
 
 ```bash
 code --install-extension vscode-infinite-pm-X.Y.Z.vsix
 ```
 
+The extension's LSP features are powered by a Go binary, **`ipm-rpc`**, which is
+**bundled in the published `.vsix`** — there's nothing extra to install.
 Each build is platform-specific (`linux-amd64`, `darwin-arm64`, …) and ships the
 matching `ipm-rpc` under `bin/<os>-<arch>/`; the extension uses it automatically.
 
@@ -80,6 +83,11 @@ The editor title bar of a `.ipmt` file shows two distinct preview icons (in-plac
 - A markdown-it fence-renderer override that uses LSP-emitted tokens (piggybacked on each `ipm.embedBuffer` response) to paint ipmt code blocks in the markdown preview with the exact same palette as the editor pane.
 
 ## Development
+
+Building from source requires a checkout of
+[ipm-tools](https://github.com/infinite-pm/ipm-tools) **next to this repo**
+(`../ipm-tools`) — the palette codegen reads its source of truth from there
+(see below).
 
 ```bash
 npm install
