@@ -476,7 +476,7 @@
     "gen-palette:check": "tsx scripts/gen-palette.ts --check",
     "build": "npm run gen-palette:check && webpack --mode production",
     "watch": "webpack --mode development --watch",
-    "package": "vsce package",
+    "package": "tsx scripts/check-bin.ts && vsce package",
     "test": "npm run gen-palette:check && node --import tsx --test src/__tests__/*.test.ts",
     "ci": "npm run build && npm test && npm run package"
   },
