@@ -1,6 +1,6 @@
 // Tests for the LSP-server binary resolution. We stub the vscode module
-// before importing serverPath, the same way vscode-ipm-mdpreview's tests
-// stub it for markers.
+// before importing serverPath so the module under test loads outside a
+// VS Code host.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
