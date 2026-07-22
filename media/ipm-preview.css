@@ -3,9 +3,10 @@
  * `editor.semanticTokenColorCustomizations` defaults in package.json so
  * both panes use the exact same palette.
  *
- * The token color rules below are GENERATED from src/palette.ts by
- * scripts/gen-palette.ts. Edit the palette there and run
- * `npm run gen-palette` — do not hand-edit between the GEN markers.
+ * The token color rules below are GENERATED from the palette source of
+ * truth (../ipm-tools/pkg/ipmtokens/palette.json) by scripts/gen-palette.ts. Edit the palette
+ * there and run `npm run gen-palette` — do not hand-edit between the GEN
+ * markers.
  *
  * The non-generated rules (`pre.ipmt-block` background etc.) are
  * preserved across generator runs.
