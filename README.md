@@ -75,7 +75,7 @@ The editor title bar of a `.ipmt` file shows two distinct preview icons (in-plac
 
 - A new language: `ipmt` (file extension `.ipmt`).
 - Two TextMate grammars: one for standalone `.ipmt` files, one for markdown injection. (These are the cold-start fallback when `ipm-rpc` isn't running; once the LSP is up, semantic tokens take over.)
-- 9 custom semantic token types: `ipmEvent`, `ipmThing`, `ipmConcept`, `ipmRelation`, `ipmArrow`, `ipmTypeMarker`, `ipmComment`, `ipmString`, `ipmTooltip`.
+- 10 custom semantic token types: `ipmEvent`, `ipmThing`, `ipmConcept`, `ipmRelation`, `ipmArrow`, `ipmTypeMarker`, `ipmComment`, `ipmString`, `ipmTooltip`, `ipmUnresolved`.
 - 7 token modifiers: `alias`, `hasAlias`, `marker`, `leadsTo`, `partOf`, `expresses`, `nearTo`.
 - Default color customizations (generated from the ipm-tools palette): event=orange, thing=green, concept=blue, arrows bold, kind markers bold, tooltips yellow italic.
 - An LSP client that connects to `ipm-rpc`.

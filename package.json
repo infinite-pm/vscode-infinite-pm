@@ -168,6 +168,9 @@
           ],
           "ipmTooltip": [
             "string.quoted.double.tooltip.ipmt"
+          ],
+          "ipmUnresolved": [
+            "comment.unresolved.ipmt"
           ]
         }
       },
@@ -188,6 +191,9 @@
           ],
           "ipmTooltip": [
             "string.quoted.double.tooltip.ipmt"
+          ],
+          "ipmUnresolved": [
+            "comment.unresolved.ipmt"
           ]
         }
       }
