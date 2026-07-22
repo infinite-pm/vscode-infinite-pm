@@ -9,6 +9,10 @@
     "type": "git",
     "url": "https://github.com/infinite-pm/vscode-ipm.git"
   },
+  "bugs": {
+    "url": "https://github.com/infinite-pm/vscode-ipm/issues"
+  },
+  "homepage": "https://infinite.pm",
   "engines": {
     "vscode": "^1.72.0"
   },
