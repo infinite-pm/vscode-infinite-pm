@@ -254,9 +254,10 @@ export function wireLiveRefresh(
     // restart.") — but every embedBuffer that was in flight when it died
     // was rejected, so the LiveCache keeps whatever the PREVIOUS server
     // rendered and the preview shows stale SVGs until the user closes and
-    // reopens the file. Seen 2026-07-08: all six eager fires after a
-    // binary-change restart died with "Pending response rejected since
-    // connection got disposed" when the new server crashed mid-batch.
+    // reopens the file. A crash mid-batch (e.g. right after a binary-change
+    // restart) rejects EVERY in-flight eager fire at once ("Pending response
+    // rejected since connection got disposed"), so whole documents go stale
+    // in one stroke — not just a single block.
     // When the client transitions back to Running, re-fire an eager
     // embedBuffer for every open markdown document so the preview
     // converges on the live server's output.
