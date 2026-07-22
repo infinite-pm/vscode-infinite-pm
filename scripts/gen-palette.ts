@@ -48,6 +48,10 @@ interface PaletteRule {
 }
 
 function loadRules(): PaletteRule[] {
+    if (!fs.existsSync(PALETTE_JSON)) {
+        console.error(`palette source not found: ${PALETTE_JSON} — clone https://github.com/infinite-pm/ipm-tools next to this repo (../ipm-tools)`);
+        process.exit(1);
+    }
     const doc = JSON.parse(fs.readFileSync(PALETTE_JSON, 'utf8'));
     return doc.rules as PaletteRule[];
 }
