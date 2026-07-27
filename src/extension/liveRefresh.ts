@@ -1,6 +1,6 @@
 // Live SVG refresh on edit (without saving the file).
 //
-// Strategy (Approach 2): on every
+// Strategy: on every
 // debounced text change, call the LSP server's ipm.embedBuffer command
 // to render every ipmt block in the *open buffer* (server reads its
 // in-memory document state, not disk). The server returns base64 SVGs;
@@ -14,6 +14,11 @@
 // existing embed-on-save flow takes over. We evict the cache for a
 // URI on save (the regular flow now owns the rendering) and on close
 // (the user is done with that file).
+//
+// Two resilience behaviours live here too: transient embed errors (the
+// server not yet knowing a document) are retried briefly, and when the
+// client returns to State.Running after a crash we re-fire embedBuffer
+// for every open markdown document so the preview recovers on its own.
 
 import * as vscode from 'vscode';
 import { LanguageClient, State } from 'vscode-languageclient/node';
@@ -32,9 +37,9 @@ export interface LiveEntry {
     hash: string;
     dataUrl: string;
     // Optional: cached semantic tokens for this block's ipmt source. The
-    // preview tokenizer prefers these over its built-in regex tokenizer
-    // so editor + preview stay color-aligned even when the heuristic
-    // tokenizer would diverge.
+    // preview tokenizer uses these so editor + preview stay color-aligned;
+    // there is no client-side fallback tokenizer, so a cache miss renders the
+    // block uncolored rather than subtly differently colored.
     tokens?: BufferToken[];
 }
 
@@ -192,9 +197,8 @@ export function wireLiveRefresh(
     // `fire` schedules a debounced embedBuffer; `fireNow` runs it
     // immediately. The immediate path is used for file open + extension
     // activation so the LSP token cache is populated before the user
-    // sees the preview for the first time. Without this the preview
-    // falls back to the regex tokenizer for cold-open files, producing
-    // visibly different colors from the editor pane.
+    // sees the preview for the first time. Without this a cold-open file
+    // shows its ipmt blocks uncolored until the first embedBuffer lands.
     const fireNow = async (doc: vscode.TextDocument) => {
         const cfg = vscode.workspace.getConfiguration('ipm');
         if (!cfg.get<boolean>('liveRefresh', true)) {
@@ -273,9 +277,8 @@ export function wireLiveRefresh(
 
     // Catch up on any markdown documents that were already open when
     // the extension activated. Without this, files visible at startup
-    // never trigger an embedBuffer until the first edit — so the
-    // preview falls back to the regex tokenizer with visibly different
-    // colors from the editor pane.
+    // never trigger an embedBuffer until the first edit — so already-open
+    // files would render uncolored until the user types.
     for (const doc of vscode.workspace.textDocuments) {
         if (doc.languageId === 'markdown') {
             void fireNow(doc);

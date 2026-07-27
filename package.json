@@ -14,7 +14,7 @@
   },
   "homepage": "https://infinite.pm",
   "engines": {
-    "vscode": "^1.72.0"
+    "vscode": "^1.82.0"
   },
   "categories": [
     "Programming Languages",
@@ -85,7 +85,7 @@
       },
       {
         "id": "ipmRelation",
-        "description": "Relation letter (L / P / X / N) inside an explicit arrow."
+        "description": "Relation marker (::L / ::P / ::X / ::N) inside an explicit arrow."
       },
       {
         "id": "ipmArrow",
@@ -93,7 +93,7 @@
       },
       {
         "id": "ipmTypeMarker",
-        "description": "Type marker (::e ::t ::c ::a ::tip)."
+        "description": "Annotation marker (::a ::tip); ::e/::t/::c paint as their node kind with the `marker` modifier."
       },
       {
         "id": "ipmComment",
@@ -190,8 +190,20 @@
           "ipmConcept": [
             "entity.name.type.concept.ipmt"
           ],
+          "ipmRelation": [
+            "storage.type.relation.ipmt"
+          ],
           "ipmArrow": [
             "keyword.operator.arrow.ipmt"
+          ],
+          "ipmTypeMarker": [
+            "storage.type.node.ipmt"
+          ],
+          "ipmComment": [
+            "comment.line.number-sign.ipmt"
+          ],
+          "ipmString": [
+            "string.quoted.double.ipmt"
           ],
           "ipmTooltip": [
             "string.quoted.double.tooltip.ipmt"
@@ -308,7 +320,7 @@
         "ipm.liveRefresh": {
           "type": "boolean",
           "default": true,
-          "description": "Refresh ipmt diagrams in the markdown preview as you type, without requiring a save. The LSP server renders each ipmt block from the current buffer and the preview swaps the rendered <img> for a data: URL until the next save."
+          "description": "Refresh ipmt diagrams in the markdown preview as you type, without requiring a save. The LSP server renders each ipmt block from the current buffer and the preview swaps the rendered <img> for a data: URL until the next save. Applies to the markdown preview only — the `.ipmt` preview pane always re-renders as you type (it only reads `ipm.liveRefreshDebounceMs`)."
         },
         "ipm.liveRefreshDebounceMs": {
           "type": "number",

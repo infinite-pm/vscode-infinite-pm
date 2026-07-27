@@ -1,0 +1,15 @@
+{
+  // Press F5 to launch an Extension Development Host with this extension
+  // loaded. Build first (`npm run build`) or keep `npm run watch` running —
+  // the host loads the webpack bundle from dist/.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+    }
+  ]
+}

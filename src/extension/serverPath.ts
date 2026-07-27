@@ -1,7 +1,6 @@
 // Server-binary resolution for ipm-rpc.
 //
-// Resolution order (per the analysis doc, Part 2 "Shipping a default
-// ipm-rpc binary inside the extension"):
+// Resolution order:
 //
 //   1. ipm.serverPath setting — explicit override; for power users with
 //      their own build.

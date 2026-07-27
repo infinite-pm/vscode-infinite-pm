@@ -14,4 +14,5 @@ full command list. The short version:
 - `npm install`, then `npm run build`.
 - `npm test` runs the unit tests (plus the palette drift check). Please make
   sure it passes before sending a PR.
-- Press `F5` in VS Code to try your changes in a development host.
+- Press `F5` in VS Code to try your changes in an Extension Development Host
+  (build first, or keep `npm run watch` running).

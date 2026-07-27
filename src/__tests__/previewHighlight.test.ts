@@ -1,4 +1,5 @@
-// Tests for the fence renderer's ipmt syntax highlighting.
+// Tests for the markdown preview's ipmt highlighting: the fence renderer
+// and the inline `<!--ipmt-->` code-span renderer.
 //
 // The renderer is LSP-only: tokens come from the Go-side
 // `ipm.embedBuffer` pipeline and feed into the fence renderer via the

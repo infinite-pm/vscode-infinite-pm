@@ -1,6 +1,7 @@
 // Tests for the cache-bust rule: when an ipm-svg marker precedes an image,
 // the image's `src` must gain a `?v=<hash>` query so the rendered preview
-// re-fetches the file when the on-disk SVG changes.
+// re-fetches the file when the on-disk SVG changes — and, when a live cache
+// entry exists, is replaced by the in-memory `data:` URL instead.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

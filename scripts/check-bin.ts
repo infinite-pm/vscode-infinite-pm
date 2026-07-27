@@ -1,5 +1,5 @@
 // Packaging preflight: warn when no ipm-rpc binary is staged under
-// bin/<goos>-<goarch>/. CI populates bin/ before `npm run package`; a
+// bin/<goos>-<goarch>/. CI stages bin/ and invokes vsce directly, so this guard covers local `npm run package`; a
 // local checkout usually has it empty, which silently produces a .vsix
 // without a bundled server. That vsix still works — the extension falls
 // back to `ipm.serverPath` or an `ipm-rpc` found on PATH — but the

@@ -1,7 +1,9 @@
 // Syntax highlighting for ```ipmt``` code blocks in the VS Code markdown
 // preview.
 //
-// SINGLE SOURCE OF TRUTH: the Go-side tokenizer in cmd/ipm-rpc/tokens.go.
+// SINGLE SOURCE OF TRUTH: the Go-side tokenizer in ipm-tools
+// pkg/ipmtokens (`ipmtokens.Collect`); cmd/ipm-rpc/tokens.go only does the
+// LSP wire encoding.
 // Every coloring decision (which identifier is an event, which arrow has
 // PartOf modifier, where tooltips begin and end) comes from there.
 //
@@ -48,8 +50,8 @@ export interface PreviewToken {
     mods?: number;
 }
 
-// Bitmask modifiers, matching the Go `semanticTokenModifiers` order in
-// cmd/ipm-rpc/tokens.go.
+// Bitmask modifiers, matching the order of `SemanticTokenModifiers` in
+// ipm-tools pkg/ipmtokens/tokens.go.
 const MOD_ALIAS     = 1 << 0;
 const MOD_LEADSTO   = 1 << 1;
 const MOD_PARTOF    = 1 << 2;
@@ -87,7 +89,8 @@ function modifierFor(type: string, mods: number): import('../palette').ModifierN
 // `<span class="ipm-…">` markers. Tokens are block-relative; we use a
 // line-start index to map (line, col, len) to offsets in `src`.
 //
-// Overlap resolution: LAST WINS PER CHARACTER. The LSP emits
+// Overlap resolution: last-wins per character — a defensive no-op, since
+// `ipmtokens.Flatten` already makes the server's stream disjoint. The LSP emits
 // overlapping tokens by design — an arrow span covers an embedded
 // tooltip, and a relation marker (`::L`) sits inside the arrow span —
 // so subsequent (later-emitted) tokens override earlier ones at

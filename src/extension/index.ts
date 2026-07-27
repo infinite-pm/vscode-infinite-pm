@@ -1,6 +1,6 @@
 // Entry point for the vscode-infinite-pm extension.
 //
-// Scope (tiny by design — the heavy lifting is in cmd/ipm-rpc):
+// Scope (the heavy lifting is in cmd/ipm-rpc):
 //   * resolve the ipm-rpc binary (config → PATH → bundled fallback)
 //   * start an LSP client (vscode-languageclient) and connect to ipm-rpc
 //     over stdio
@@ -11,6 +11,11 @@
 //   * auto-restart the LSP client when the ipm-rpc binary mtime changes
 //     (so `go install ./cmd/ipm-rpc` re-picks-up without a window reload)
 //   * "infinite.pm: Restart Language Server" command for manual restarts
+//   * wire the markdown preview: SVG cache-busting, the ipmt fence
+//     renderer and inline `<!--ipmt-->` highlighting
+//   * live refresh on edit (ipm.embedBuffer) and the `.ipmt` include
+//     refresh (saving a shared .ipmt re-embeds the markdown including it)
+//   * the `.ipmt` preview pane, and the 11 contributed commands
 
 import * as fs from 'fs';
 import * as vscode from 'vscode';

@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.4.1
+## 0.4.1 — unreleased
 
-First public release.
+First public release (not yet published — see the README for how to get a `.vsix`).
 
 - ipmt language support: syntax highlighting for `.ipmt` files and for
   ` ```ipmt ` fences inside Markdown — TextMate grammars for cold start,
@@ -15,10 +15,15 @@ First public release.
 - Fence-meta aware highlighting: ` ```ipmt ` fences with meta tokens
   (`embed=false`, `unresolved`, `key=value`) are highlighted;
   ` ```ipmt-invalid ` fences are deliberately not.
+- Inline ipmt highlighting in prose: an `<!--ipmt-->` (or
+  `<!--ipmt:as-token:NAME-->`) marker before a backtick code span paints that
+  span with the same token colors in the markdown preview.
 - Diagnostics in the Problems panel (parse errors + IPMV* validation
   findings) and hover documentation for kind markers and arrows.
 - Embed-on-save: saving a `.md` file with ipmt blocks refreshes its
-  committed SVGs under `_ipm/` and their marker hashes (`ipm.embed`).
+  committed SVGs under `_ipm/` and their marker hashes (`ipm.embed`). Saving a
+  shared `.ipmt` file re-embeds the markdown files that include it via
+  `<!-- ipm-include -->`, scoped to its git repository.
 - Live SVG refresh as you type: in-memory renders via `ipm.embedBuffer`
   swap the preview images to `data:` URLs until the next save; the preview
   recovers automatically if `ipm-rpc` dies mid-refresh.

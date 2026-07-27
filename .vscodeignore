@@ -5,6 +5,7 @@
 !language-configuration.json
 !package.json
 !README.md
+!CHANGELOG.md
 !AUTHORS.md
 !LICENSE
 !bin/**

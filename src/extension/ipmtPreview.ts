@@ -6,6 +6,10 @@
 // re-render on edit), but the SVG NEVER touches disk — every render
 // goes through `ipm.embedBuffer` which holds the bytes in memory.
 //
+// The webview also provides pan (translate) and crisp zoom: the SVG
+// element is RESIZED per step rather than CSS-scaled, so vectors stay
+// sharp, with a zoom indicator shown while zoomed and view state kept
+// across debounced re-renders.
 
 import * as path from 'path';
 import * as vscode from 'vscode';

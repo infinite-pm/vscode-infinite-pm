@@ -24,13 +24,14 @@ jobs:
       - working-directory: vscode-ipm
         run: npm ci
       - working-directory: vscode-ipm
-        run: npm run build   # includes gen-palette:check against ../ipm-tools/palette.json
+        run: npm run build   # includes gen-palette:check against ../ipm-tools/pkg/ipmtokens/palette.json
       - working-directory: vscode-ipm
         run: npm test
 
   # One platform-specific .vsix per target, each bundling the matching ipm-rpc
   # under bin/<goos>-<goarch>/ (resolved by the extension's bundled fallback).
   package:
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

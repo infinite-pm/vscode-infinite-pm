@@ -1,7 +1,8 @@
-// Unit tests for the LiveCache in liveRefresh.ts. The runtime wiring
-// (debouncer, LSP call, save eviction) is exercised in the extension
-// integration; here we cover only the cache's data shape and eviction
-// guarantees, which are pure and easy to test in plain Node.
+// Unit tests for the pure parts of liveRefresh.ts: the LiveCache's data
+// shape and eviction guarantees (including token caching and CRLF /
+// trailing-newline normalization) plus the `isTransientEmbedError`
+// predicate. The runtime wiring (debouncer, LSP call, save eviction) has no
+// automated coverage — it is exercised manually in a development host.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
