@@ -1,7 +1,7 @@
 # Contributing
 
 Issues and pull requests are welcome at
-<https://github.com/infinite-pm/vscode-ipm>.
+<https://github.com/infinite-pm/vscode-infinite-pm>.
 
 ## Development setup
 

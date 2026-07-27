@@ -2,15 +2,16 @@
   "name": "vscode-infinite-pm",
   "displayName": "infinite.pm",
   "description": "ipmt language support and embed-on-save for infinite.pm (Infinite Process Modeling)",
+  "icon": "media/icon.png",
   "version": "0.4.1",
   "publisher": "ipm",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/infinite-pm/vscode-ipm.git"
+    "url": "https://github.com/infinite-pm/vscode-infinite-pm.git"
   },
   "bugs": {
-    "url": "https://github.com/infinite-pm/vscode-ipm/issues"
+    "url": "https://github.com/infinite-pm/vscode-infinite-pm/issues"
   },
   "homepage": "https://infinite.pm",
   "engines": {

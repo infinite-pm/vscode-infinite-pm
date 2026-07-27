@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- infinite.pm extension icon: a minimal Semantic Spacetime triad drawn with
+       the same palette the renderer uses — an EVENT (orange) with a THING
+       (green) part-of it and a CONCEPT (blue) it expresses. Pure shapes, no
+       text, so it stays legible from 16px up and rasterizes deterministically. -->
+  <rect x="0" y="0" width="128" height="128" rx="24" fill="#f7f9fc"/>
+
+  <!-- edges first, so the nodes sit on top -->
+  <!-- thing --part-of--> event -->
+  <line x1="38" y1="88" x2="58" y2="52" stroke="#82b366" stroke-width="6" stroke-linecap="round"/>
+  <!-- event --expresses--> concept (dashed, as expresses renders) -->
+  <line x1="72" y1="52" x2="92" y2="88" stroke="#6c8ebf" stroke-width="6" stroke-linecap="round" stroke-dasharray="9 7"/>
+
+  <!-- event (orange) -->
+  <circle cx="64" cy="40" r="17" fill="#ffe6cc" stroke="#ff8000" stroke-width="6"/>
+  <!-- thing (green) -->
+  <circle cx="30" cy="97" r="15" fill="#d5e8d4" stroke="#82b366" stroke-width="6"/>
+  <!-- concept (blue) -->
+  <circle cx="99" cy="97" r="15" fill="#dae8fc" stroke="#6c8ebf" stroke-width="6"/>
+</svg>
