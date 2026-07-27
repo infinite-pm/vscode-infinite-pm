@@ -8,6 +8,10 @@
 //     workspace/executeCommand ipm.embed (when ipm.embedOnSave is true)
 //   * graceful degradation when ipm-rpc isn't installed: grammars still
 //     work; the LSP features are dormant with a one-time notification
+//   * workspace trust: the server is a child process and embed-on-save
+//     writes files, so neither starts in a restricted workspace — this
+//     is the `capabilities.untrustedWorkspaces: limited` claim in
+//     package.json, and it must stay true
 //   * auto-restart the LSP client when the ipm-rpc binary mtime changes
 //     (so `go install ./cmd/ipm-rpc` re-picks-up without a window reload)
 //   * "infinite.pm: Restart Language Server" command for manual restarts
@@ -56,6 +60,7 @@ let restartTimer: NodeJS.Timeout | undefined;
 let restartInFlight = false;
 let serverState: {
     command?: string;
+    untrusted?: boolean;
     version?: string;
     versionError?: string;
     connected: boolean;
@@ -149,6 +154,14 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<typeof ext
         lastMarkdownUri = active.document.uri;
     }
 
+    // Trust can be granted mid-session; pick the server up when it is.
+    ctx.subscriptions.push(
+        vscode.workspace.onDidGrantWorkspaceTrust(() => {
+            log.appendLine('[trust] workspace trust granted');
+            void restartClient(ctx, log, 'trust granted');
+        }),
+    );
+
     await startClient(ctx, log);
 
     return extensionApi;
@@ -162,6 +175,18 @@ export async function deactivate(): Promise<void> {
 
 async function startClient(ctx: vscode.ExtensionContext, log: vscode.OutputChannel): Promise<void> {
     serverState = { connected: false };
+
+    // Starting the server means spawning an executable whose path a user
+    // setting can name, and embed-on-save then writes SVGs into the open
+    // folder. Neither is safe for a workspace the user has not vouched
+    // for, so in restricted mode we stay dormant — grammars and the
+    // static contributions still give full highlighting.
+    if (!vscode.workspace.isTrusted) {
+        serverState.untrusted = true;
+        log.appendLine('[trust] workspace is restricted — not starting ipm-rpc (highlighting still works). Trust the folder for preview, live refresh and embed-on-save.');
+        return;
+    }
+
     const serverInfo = resolveServer(ctx, log);
     if (!serverInfo) {
         showOneShotMissingBinaryNotice(ctx);
@@ -294,6 +319,10 @@ function stopBinaryWatcher(): void {
 
 async function showServerInfo(log: vscode.OutputChannel): Promise<void> {
     const lines: string[] = [];
+    if (serverState.untrusted) {
+        lines.push('Workspace is RESTRICTED — the language server is not started.');
+        lines.push('Trust the folder (Workspaces: Manage Workspace Trust) to enable it.');
+    }
     lines.push(`Path:    ${serverState.command ?? '(not resolved)'}`);
     lines.push(`Version: ${serverState.version ?? '(unknown)'}`);
     if (serverState.versionError) {

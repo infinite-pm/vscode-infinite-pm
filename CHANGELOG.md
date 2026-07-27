@@ -32,3 +32,9 @@ First public release (not yet published — see the README for how to get a `.vs
 - Force re-embed commands: current file, whole workspace, current repo.
 - `ipm-rpc` resolution order `ipm.serverPath` → `PATH` → bundled
   per-platform binary, with LSP auto-restart when the binary changes.
+  `ipm.serverPath` is `machine-overridable`, so a workspace cannot choose
+  which executable gets spawned.
+- Restricted workspaces are supported *limited*: highlighting works, but the
+  server does not start and nothing is written to disk until the folder is
+  trusted (the server then starts without a reload). Virtual workspaces are
+  declared unsupported — the server is a local child process.

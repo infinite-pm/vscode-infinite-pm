@@ -45,6 +45,15 @@ set `ipm.serverPath` to a binary you built, or put one on your `PATH` with
 bundled copy. Or open this workspace in VS Code, press `F5`, and run the extension
 in a development host.
 
+**Workspace trust.** The extension declares *limited* support for restricted
+workspaces. Opening an untrusted folder gives you full highlighting (grammars are
+static), but the `ipm-rpc` server is not started and embed-on-save writes nothing —
+starting the server spawns an executable, and embedding writes SVGs into your
+folder. Trust the folder ("Workspaces: Manage Workspace Trust") and the server
+starts immediately, no reload needed. This is also why `ipm.serverPath` is a
+`machine-overridable` setting: a repository you clone cannot point the extension at
+an executable of its choosing.
+
 **If no `ipm-rpc` can be resolved** (e.g. an unsupported platform with no bundled
 binary and none on `PATH`), the extension still provides syntax highlighting via its
 TextMate grammar — you just don't get the LSP-driven features (diagnostics, hover,
@@ -55,7 +64,7 @@ renders an "ipm-rpc not running" banner instead). A one-shot notification explai
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `ipm.serverPath` | `""` | Path to the `ipm-rpc` binary. If empty, the extension searches `PATH` for `ipm-rpc`; if still not found, falls back to the `ipm-rpc` bundled in the extension's `bin/<os>-<arch>/` directory. |
+| `ipm.serverPath` | `""` | Path to the `ipm-rpc` binary. *(machine-overridable: settable per user or per remote machine, never by a workspace.)* If empty, the extension searches `PATH` for `ipm-rpc`; if still not found, falls back to the `ipm-rpc` bundled in the extension's `bin/<os>-<arch>/` directory. |
 | `ipm.embedOnSave` | `true` | When you save a `.md` file with ipmt blocks, refresh the committed SVGs and marker hashes via `ipm.embed`. |
 | `ipm.embedDebounceMs` | `0` | Debounce period before embed-on-save fires. `0` = no debounce; embed runs on every save. Raise to e.g. `800` if you save rapidly during editing. |
 | `ipm.liveRefresh` | `true` | Refresh ipmt diagrams in the markdown preview as you type (no save needed). Renders are in-memory via `ipm.embedBuffer`; the on-disk SVGs are untouched until you save and `ipm.embed` runs. |

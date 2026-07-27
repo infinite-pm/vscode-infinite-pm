@@ -4,7 +4,7 @@
   "description": "ipmt language support and embed-on-save for infinite.pm (Infinite Process Modeling)",
   "icon": "media/icon.png",
   "version": "0.4.1",
-  "publisher": "ipm",
+  "publisher": "infinite-pm",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -14,8 +14,24 @@
     "url": "https://github.com/infinite-pm/vscode-infinite-pm/issues"
   },
   "homepage": "https://infinite.pm",
+  "sponsor": {
+    "url": "https://github.com/sponsors/mj41"
+  },
   "engines": {
     "vscode": "^1.82.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Highlighting works everywhere. The ipmt language server is a local child process and embed-on-save writes SVGs next to your Markdown, so neither starts until you trust the folder."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Needs a real filesystem and a local child process (the ipm-rpc language server)."
+    }
   },
   "categories": [
     "Programming Languages",
@@ -306,6 +322,7 @@
         "ipm.serverPath": {
           "type": "string",
           "default": "",
+          "scope": "machine-overridable",
           "description": "Path to the ipm-rpc binary. If empty, searches PATH for 'ipm-rpc'. If still not found, falls back to the bundled binary inside the extension."
         },
         "ipm.embedOnSave": {
