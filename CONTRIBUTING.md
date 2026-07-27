@@ -16,3 +16,8 @@ full command list. The short version:
   sure it passes before sending a PR.
 - Press `F5` in VS Code to try your changes in an Extension Development Host
   (build first, or keep `npm run watch` running).
+
+## Releasing
+
+Tag-driven, and the one-time marketplace setup is the interesting part:
+[RELEASING.md](RELEASING.md).

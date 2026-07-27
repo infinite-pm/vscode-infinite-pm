@@ -1,0 +1,156 @@
+name: Release
+
+# Tag-driven release. `git tag v0.4.1 && git push origin v0.4.1` →
+#
+#   preflight  version/tag + CHANGELOG guards, resolve ipm-tools to a SHA
+#   build      the shared matrix from build-vsix.yml, five platform vsix files
+#   release    checksums, provenance attestations, a GitHub release (draft)
+#   publish    Marketplace + Open VSX — gated on the `release` environment
+#
+# Everything up to and including the GitHub release is safe to redo: the release
+# is created as a DRAFT, so a bad run can be deleted. `publish` is the
+# irreversible step — a marketplace version can never be replaced, only
+# superseded — so it sits behind a GitHub environment. Give `release` a required
+# reviewer and a tag push builds and stages everything, then waits for a click.
+#
+# Setup, once (see RELEASING.md): publisher `infinite-pm` registered on both
+# marketplaces, and the `release` environment holding VSCE_PAT + OVSX_PAT.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re-)release, e.g. v0.4.1'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      ipm-tools-sha: ${{ steps.pin.outputs.sha }}
+    steps:
+      - id: tag
+        run: echo "tag=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with: { ref: '${{ steps.tag.outputs.tag }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      # Asserts package.json version == tag minus 'v', and that CHANGELOG.md has
+      # a dated (not "unreleased") section for it. Fails in the first minute
+      # rather than after five platform builds.
+      - name: Version, tag and changelog guards
+        run: npx tsx scripts/release-notes.ts "${{ steps.tag.outputs.tag }}" > release-notes.md
+      - uses: actions/upload-artifact@v4
+        with: { name: release-notes, path: release-notes.md, if-no-files-found: error }
+      # Resolve the pinned ref ONCE, to a SHA, so all five builds bundle the
+      # same server even if the ref moves mid-run — and so the release can say
+      # exactly which ipm-tools it shipped.
+      - name: Resolve the pinned ipm-tools ref
+        id: pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ref="$(grep -v '^#' .github/ipm-tools.ref | tr -d '[:space:]')"
+          [ -n "$ref" ] || { echo "::error::.github/ipm-tools.ref names no ref"; exit 1; }
+          sha="$(gh api "repos/infinite-pm/ipm-tools/commits/$ref" --jq .sha)"
+          echo "ipm-tools $ref -> $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: preflight
+    uses: ./.github/workflows/build-vsix.yml
+    with:
+      ipm-tools-ref: ${{ needs.preflight.outputs.ipm-tools-sha }}
+      retention-days: 90
+
+  release:
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # gh release create
+      id-token: write       # provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ needs.preflight.outputs.tag }}' }
+      - uses: actions/download-artifact@v4
+        with: { pattern: vsix-*, merge-multiple: true, path: vsix }
+      - uses: actions/download-artifact@v4
+        with: { name: release-notes, path: . }
+      - name: Checksums
+        working-directory: vsix
+        run: |
+          ls -l
+          sha256sum *.vsix | tee SHA256SUMS
+      # First-party attestation: lets anyone verify a .vsix came from this
+      # workflow at this commit (`gh attestation verify <file> -R <repo>`).
+      - uses: actions/attest-build-provenance@v2
+        with: { subject-path: 'vsix/*.vsix' }
+      - name: Draft the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+          IPM_TOOLS_SHA: ${{ needs.preflight.outputs.ipm-tools-sha }}
+        run: |
+          {
+            cat release-notes.md
+            echo
+            echo "---"
+            echo
+            echo "Bundled \`ipm-rpc\` built from [ipm-tools@\`${IPM_TOOLS_SHA:0:12}\`](https://github.com/infinite-pm/ipm-tools/commit/$IPM_TOOLS_SHA)."
+            echo
+            echo "One \`.vsix\` per platform — install the one matching your machine:"
+            echo '```bash'
+            echo "code --install-extension vscode-infinite-pm-<target>-${TAG#v}.vsix"
+            echo '```'
+            echo
+            echo "\`SHA256SUMS\` covers every asset. Provenance: \`gh attestation verify <file> -R $GITHUB_REPOSITORY\`."
+          } > body.md
+          gh release create "$TAG" vsix/*.vsix vsix/SHA256SUMS \
+            --title "$TAG" --notes-file body.md --draft --verify-tag
+
+  publish:
+    needs: [preflight, release]
+    runs-on: ubuntu-latest
+    environment: release          # <- the human gate; irreversible past here
+    permissions:
+      contents: write             # undraft the release once publishing succeeded
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ needs.preflight.outputs.tag }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with: { pattern: vsix-*, merge-multiple: true, path: vsix }
+      # --skip-duplicate on both, so a re-run after a half-published release
+      # (Marketplace accepted, Open VSX failed) finishes the job instead of
+      # erroring on the version that already landed.
+      #
+      # --packagePath on the EXACT files the release advertises. Without it vsce
+      # re-packages, and the vsix a user downloads from GitHub would not be
+      # bit-identical to the one on the marketplace. Platform-specific vsix
+      # files carry their target in the manifest, so it needs no --target here.
+      - name: Publish to the Visual Studio Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --skip-duplicate --packagePath vsix/*.vsix
+      # Open VSX is a separate identity (Eclipse account + namespace). Skipping
+      # it makes the extension invisible to VSCodium, Cursor, Windsurf, Gitpod
+      # and code-server.
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx ovsx publish --skip-duplicate --packagePath vsix/*.vsix -p "$OVSX_PAT"
+      - name: Undraft the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ needs.preflight.outputs.tag }}" --draft=false --latest

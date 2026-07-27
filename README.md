@@ -17,8 +17,11 @@ Language support for [Infinite Process Modeling (infinite.pm)](https://infinite.
 
 ## Installation
 
-The extension is not on the Marketplace yet. Until a release is published, get a
-`.vsix` one of two ways:
+The extension is not on the Marketplace yet. Once it is, releases go to both the
+Visual Studio Marketplace and [Open VSX](https://open-vsx.org) (for VSCodium,
+Cursor, Windsurf, Gitpod, code-server), plus a GitHub release carrying one
+`.vsix` per platform with `SHA256SUMS` and build provenance — see
+[RELEASING.md](RELEASING.md). Until then, get a `.vsix` one of two ways:
 
 - **From CI** — the `package` job of every green build uploads one per platform as
   a workflow artifact (kept 14 days; needs access to the repo's Actions tab). The

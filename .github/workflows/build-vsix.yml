@@ -1,0 +1,121 @@
+name: Build vsix
+
+# Reusable: called by ci.yml (on every push/PR) and by release.yml (on a tag).
+# Both go through here so the .vsix a release publishes is built exactly the way
+# CI proved it builds — the ONLY difference is which ipm-tools ref the bundled
+# ipm-rpc server comes from, which the caller passes in.
+#
+# The extension's palette source of truth and the ipm-rpc server both live in
+# the sibling ipm-tools repo, so every job checks it out at ../ipm-tools.
+
+on:
+  workflow_call:
+    inputs:
+      ipm-tools-ref:
+        description: 'infinite-pm/ipm-tools ref (branch, tag or SHA) to build ipm-rpc from'
+        required: true
+        type: string
+      retention-days:
+        description: 'How long to keep the vsix artifacts'
+        required: false
+        type: number
+        default: 14
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: vscode-ipm }
+      - uses: actions/checkout@v4
+        with:
+          repository: infinite-pm/ipm-tools
+          ref: ${{ inputs.ipm-tools-ref }}
+          path: ipm-tools
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm', cache-dependency-path: vscode-ipm/package-lock.json }
+      - uses: actions/setup-go@v5
+        with: { go-version-file: ipm-tools/go.mod }
+      - working-directory: vscode-ipm
+        run: npm ci
+      - working-directory: vscode-ipm
+        run: npm run build   # includes gen-palette:check against ../ipm-tools/pkg/ipmtokens/palette.json
+      - working-directory: vscode-ipm
+        run: npm test
+
+  # One platform-specific .vsix per target, each bundling the matching ipm-rpc
+  # under bin/<goos>-<goarch>/ (resolved by the extension's bundled fallback).
+  package:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { vsce: linux-x64,    goos: linux,   goarch: amd64 }
+          - { vsce: linux-arm64,  goos: linux,   goarch: arm64 }
+          - { vsce: darwin-x64,   goos: darwin,  goarch: amd64 }
+          - { vsce: darwin-arm64, goos: darwin,  goarch: arm64 }
+          - { vsce: win32-x64,    goos: windows, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: vscode-ipm }
+      - uses: actions/checkout@v4
+        with:
+          repository: infinite-pm/ipm-tools
+          ref: ${{ inputs.ipm-tools-ref }}
+          path: ipm-tools
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm', cache-dependency-path: vscode-ipm/package-lock.json }
+      - uses: actions/setup-go@v5
+        with: { go-version-file: ipm-tools/go.mod }
+      - working-directory: vscode-ipm
+        run: npm ci
+      - name: Build ipm-rpc for ${{ matrix.goos }}/${{ matrix.goarch }}
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          ext=""; [ "$GOOS" = "windows" ] && ext=".exe"
+          out="vscode-ipm/bin/${GOOS}-${GOARCH}/ipm-rpc${ext}"
+          mkdir -p "$(dirname "$out")"
+          go build -C ipm-tools -trimpath -ldflags='-s -w' -o "$(pwd)/$out" ./cmd/ipm-rpc
+      - name: Package ${{ matrix.vsce }} .vsix
+        working-directory: vscode-ipm
+        run: npx vsce package --target ${{ matrix.vsce }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.vsce }}
+          path: vscode-ipm/*.vsix
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention-days }}
+
+  # Cross-compiled binaries are never executed by the package job, so a broken
+  # cross-build would only surface on a user's machine. Start each native one
+  # once and ask it for its version.
+  smoke:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, goos: windows, goarch: amd64 }
+          - { os: macos-latest,   goos: darwin,  goarch: arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: infinite-pm/ipm-tools
+          ref: ${{ inputs.ipm-tools-ref }}
+          path: ipm-tools
+      - uses: actions/setup-go@v5
+        with: { go-version-file: ipm-tools/go.mod }
+      - name: Build and run ipm-rpc --version natively
+        shell: bash
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          ext=""; [ "${{ matrix.goos }}" = "windows" ] && ext=".exe"
+          go build -C ipm-tools -trimpath -o "$(pwd)/ipm-rpc${ext}" ./cmd/ipm-rpc
+          "./ipm-rpc${ext}" --version

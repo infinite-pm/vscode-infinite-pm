@@ -6,69 +6,15 @@ on:
   pull_request:
     branches: [main]
 
-# The extension's palette source of truth and the ipm-rpc server both live in
-# the sibling ipm-tools repo, so every job checks it out at ../ipm-tools
-# (workspace/ipm-tools, sibling to workspace/vscode-ipm).
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with: { path: vscode-ipm }
-      - uses: actions/checkout@v4
-        with: { repository: infinite-pm/ipm-tools, path: ipm-tools }
-      - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm', cache-dependency-path: vscode-ipm/package-lock.json }
-      - uses: actions/setup-go@v5
-        with: { go-version-file: ipm-tools/go.mod }
-      - working-directory: vscode-ipm
-        run: npm ci
-      - working-directory: vscode-ipm
-        run: npm run build   # includes gen-palette:check against ../ipm-tools/pkg/ipmtokens/palette.json
-      - working-directory: vscode-ipm
-        run: npm test
-
-  # One platform-specific .vsix per target, each bundling the matching ipm-rpc
-  # under bin/<goos>-<goarch>/ (resolved by the extension's bundled fallback).
-  package:
-    needs: test
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { vsce: linux-x64,    goos: linux,   goarch: amd64 }
-          - { vsce: linux-arm64,  goos: linux,   goarch: arm64 }
-          - { vsce: darwin-x64,   goos: darwin,  goarch: amd64 }
-          - { vsce: darwin-arm64, goos: darwin,  goarch: arm64 }
-          - { vsce: win32-x64,    goos: windows, goarch: amd64 }
-    steps:
-      - uses: actions/checkout@v4
-        with: { path: vscode-ipm }
-      - uses: actions/checkout@v4
-        with: { repository: infinite-pm/ipm-tools, path: ipm-tools }
-      - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm', cache-dependency-path: vscode-ipm/package-lock.json }
-      - uses: actions/setup-go@v5
-        with: { go-version-file: ipm-tools/go.mod }
-      - working-directory: vscode-ipm
-        run: npm ci
-      - name: Build ipm-rpc for ${{ matrix.goos }}/${{ matrix.goarch }}
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: "0"
-        run: |
-          ext=""; [ "$GOOS" = "windows" ] && ext=".exe"
-          out="vscode-ipm/bin/${GOOS}-${GOARCH}/ipm-rpc${ext}"
-          mkdir -p "$(dirname "$out")"
-          go build -C ipm-tools -trimpath -ldflags='-s -w' -o "$(pwd)/$out" ./cmd/ipm-rpc
-      - name: Package ${{ matrix.vsce }} .vsix
-        working-directory: vscode-ipm
-        run: npx vsce package --target ${{ matrix.vsce }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vsix-${{ matrix.vsce }}
-          path: vscode-ipm/*.vsix
-          if-no-files-found: error
-          retention-days: 14
+  # The build/test/package matrix lives in the reusable build-vsix.yml, shared
+  # with release.yml, so what a release ships is built exactly the way CI proves
+  # it builds.
+  #
+  # CI deliberately uses ipm-tools main rather than the pinned ref in
+  # .github/ipm-tools.ref: palette drift and server API breaks should surface on
+  # the next push, not at release time. Releases pin.
+  build:
+    uses: ./.github/workflows/build-vsix.yml
+    with:
+      ipm-tools-ref: main
