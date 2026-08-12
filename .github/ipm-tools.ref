@@ -3,6 +3,10 @@
 #
 # ci.yml deliberately does NOT read this — it builds against ipm-tools main so
 # palette drift and API breaks surface on the next push, not at release time.
-# Releases pin, so a tag is reproducible; the resolved SHA is recorded in the
-# release notes either way. Move this to a tag once ipm-tools tags releases.
-main
+# Releases pin, so a release is reproducible from its own tag; the resolved SHA
+# is recorded in the release notes either way.
+#
+# This must name a ref that EXISTS in infinite-pm/ipm-tools: preflight resolves
+# it before anything is built, so a release fails fast on a typo or on a tag
+# that was never pushed.
+v0.4.1
