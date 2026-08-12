@@ -16,8 +16,10 @@ name: Release
 # reviewer and a tag push builds and stages everything, then waits for a click.
 #
 # Setup, once (see RELEASING.md): publisher `infinite-pm` registered on the
-# Visual Studio Marketplace, and the `release` environment holding VSCE_PAT.
-# Adding OVSX_PAT later turns the Open VSX step on with no workflow change.
+# Visual Studio Marketplace, and a `release` environment whose AZURE_CLIENT_ID /
+# AZURE_TENANT_ID variables name an Entra identity federated to this repo. No
+# publishing secret is stored anywhere. Adding OVSX_PAT later turns the Open VSX
+# step on with no workflow change.
 
 on:
   push:
@@ -126,6 +128,7 @@ jobs:
     environment: release          # <- the human gate; irreversible past here
     permissions:
       contents: write             # undraft the release once publishing succeeded
+      id-token: write             # mint the OIDC token azure/login federates with
     env:
       # Declared at job level so the Open VSX step's `if:` can test it: a step
       # cannot read an env var it defines itself.
@@ -146,10 +149,28 @@ jobs:
       # re-packages, and the vsix a user downloads from GitHub would not be
       # bit-identical to the one on the marketplace. Platform-specific vsix
       # files carry their target in the manifest, so it needs no --target here.
+      # Entra ID (OIDC), not a PAT. GitHub mints a short-lived token for this
+      # job, azure/login federates it into an Entra identity, and vsce picks
+      # that session up through DefaultAzureCredential. Nothing long-lived is
+      # stored in the repo, and Microsoft retires the global PATs this replaces
+      # on 2026-12-01 anyway. allow-no-subscriptions matters: the identity is an
+      # Entra app registration, which needs no Azure subscription.
+      - name: Fail early if the Entra identity is not configured
+        run: |
+          missing=""
+          [ -n "${{ vars.AZURE_CLIENT_ID }}" ] || missing="$missing AZURE_CLIENT_ID"
+          [ -n "${{ vars.AZURE_TENANT_ID }}" ] || missing="$missing AZURE_TENANT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error title=Entra identity missing::Set$missing as variables on the 'release' environment. See RELEASING.md."
+            exit 1
+          fi
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
       - name: Publish to the Visual Studio Marketplace
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx vsce publish --skip-duplicate --packagePath vsix/*.vsix
+        run: npx vsce publish --azure-credential --skip-duplicate --packagePath vsix/*.vsix
       # Open VSX is a separate identity (Eclipse account + namespace) and is a
       # LATER PHASE: registration is not done yet, so releases go to the Visual
       # Studio Marketplace only. The step stays here and turns itself on the
