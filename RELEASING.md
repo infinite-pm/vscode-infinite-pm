@@ -108,6 +108,34 @@ VSX step skips itself and says so in the run summary.
 
 - `OVSX_PAT` expires: _(fill in when phase 2 starts)_
 
+## Where everything lives
+
+The chain of trust, once, in order: **GitHub** mints an OIDC token for a job in
+the `release` environment → the **federated credential** on the managed identity
+accepts that exact subject → the **managed identity** is a Contributor on the
+**Marketplace publisher** → `vsce` publishes as it. Nothing in that chain is a
+stored secret, and nothing in it expires.
+
+| part | where to manage it |
+|---|---|
+| Publisher, members, extension stats | <https://marketplace.visualstudio.com/manage/publishers/infinite-pm> |
+| Public publisher page | <https://marketplace.visualstudio.com/publishers/infinite-pm> |
+| The extension's page (after first publish) | <https://marketplace.visualstudio.com/items?itemName=infinite-pm.vscode-infinite-pm> |
+| Managed identity `vscode-infinite-pm-publisher` (client id, federated credentials) | Azure portal → Managed Identities, resource group `rg-infinite-pm` |
+| `release` environment: reviewer, `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` | <https://github.com/infinite-pm/vscode-infinite-pm/settings/environments> |
+| Workflow runs, and the `Marketplace identity id` helper | <https://github.com/infinite-pm/vscode-infinite-pm/actions> |
+| Releases and their vsix assets | <https://github.com/infinite-pm/vscode-infinite-pm/releases> |
+| The pinned server's releases | <https://github.com/infinite-pm/ipm-tools/releases> |
+| Open VSX namespace (phase 2, not yet created) | <https://open-vsx.org/> — check with `https://open-vsx.org/api/infinite-pm` |
+
+Values that are not written down here on purpose: the tenant, subscription and
+client ids. They are not secrets, but this repo is public and they belong in the
+`release` environment's variables, which is the only place anything reads them.
+
+The `vscode-infinite-pm-publisher` **app registration** created during setup is
+not part of this chain — the publisher rejected it, which is why the managed
+identity exists. Delete it if it is still there.
+
 ## Cutting a release
 
 1. **Pin the server.** `.github/ipm-tools.ref` names the `infinite-pm/ipm-tools`
