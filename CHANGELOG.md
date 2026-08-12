@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.4.1 — unreleased
+## 0.4.1 — 2026-08-12
 
-First public release (not yet published — see the README for how to get a `.vsix`).
+First public release.
 
 - ipmt language support: syntax highlighting for `.ipmt` files and for
   ` ```ipmt ` fences inside Markdown — TextMate grammars for cold start,
