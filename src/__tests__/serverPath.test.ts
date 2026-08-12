@@ -67,12 +67,15 @@ test('resolveServer returns nothing when no binary is available', () => {
 
 test('resolveServer finds a bundled binary when one exists for this platform', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ipm-rpc-test-'));
-    const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+    const arch =
+        process.arch === 'x64'   ? 'amd64' :
+        process.arch === 'arm64' ? 'arm64' :
+        process.arch === 'arm'   ? 'arm'   : null;
     const platform =
         process.platform === 'darwin' ? 'darwin' :
         process.platform === 'linux'  ? 'linux'  :
         process.platform === 'win32'  ? 'windows' : null;
-    if (!platform) {
+    if (!platform || !arch) {
         // Unsupported test platform — skip.
         return;
     }

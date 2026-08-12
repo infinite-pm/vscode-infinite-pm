@@ -52,11 +52,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { vsce: linux-x64,    goos: linux,   goarch: amd64 }
-          - { vsce: linux-arm64,  goos: linux,   goarch: arm64 }
-          - { vsce: darwin-x64,   goos: darwin,  goarch: amd64 }
-          - { vsce: darwin-arm64, goos: darwin,  goarch: arm64 }
-          - { vsce: win32-x64,    goos: windows, goarch: amd64 }
+          - { vsce: linux-x64,     goos: linux,   goarch: amd64 }
+          - { vsce: linux-arm64,   goos: linux,   goarch: arm64 }
+          - { vsce: linux-armhf,   goos: linux,   goarch: arm, goarm: '7' }
+          # Alpine is musl, but CGO_ENABLED=0 makes ipm-rpc a static binary, so
+          # the payload matches the glibc build; VS Code still resolves alpine-*
+          # as its own target platform, hence separate vsix files.
+          - { vsce: alpine-x64,    goos: linux,   goarch: amd64 }
+          - { vsce: alpine-arm64,  goos: linux,   goarch: arm64 }
+          - { vsce: darwin-x64,    goos: darwin,  goarch: amd64 }
+          - { vsce: darwin-arm64,  goos: darwin,  goarch: arm64 }
+          - { vsce: win32-x64,     goos: windows, goarch: amd64 }
+          - { vsce: win32-arm64,   goos: windows, goarch: arm64 }
     steps:
       - uses: actions/checkout@v4
         with: { path: vscode-ipm }
@@ -75,6 +82,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
           CGO_ENABLED: "0"
         run: |
           ext=""; [ "$GOOS" = "windows" ] && ext=".exe"
@@ -91,31 +99,46 @@ jobs:
           if-no-files-found: error
           retention-days: ${{ inputs.retention-days }}
 
-  # Cross-compiled binaries are never executed by the package job, so a broken
-  # cross-build would only surface on a user's machine. Start each native one
-  # once and ask it for its version.
+  # The package job never runs what it builds, so a broken cross-build would
+  # only surface on a user's machine. Take the SHIPPED artifact — the same vsix
+  # a release publishes — unpack the bundled server and start it. Native runners
+  # exist only for these two targets; the rest are covered by the build itself.
   smoke:
-    needs: test
+    needs: package
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, goos: windows, goarch: amd64 }
-          - { os: macos-latest,   goos: darwin,  goarch: arm64 }
+          - { os: windows-latest, vsce: win32-x64,    goos: windows, goarch: amd64 }
+          - { os: macos-latest,   vsce: darwin-arm64, goos: darwin,  goarch: arm64 }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          repository: infinite-pm/ipm-tools
-          ref: ${{ inputs.ipm-tools-ref }}
-          path: ipm-tools
-      - uses: actions/setup-go@v5
-        with: { go-version-file: ipm-tools/go.mod }
-      - name: Build and run ipm-rpc --version natively
+          name: vsix-${{ matrix.vsce }}
+          path: vsix
+      # A .vsix is a zip. Windows runners have no unzip, macOS has no
+      # Expand-Archive, so unpack per OS and share the check below.
+      - name: Unpack the vsix (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $pkg = Get-ChildItem vsix/*.vsix | Select-Object -First 1
+          Copy-Item $pkg vsix/package.zip
+          Expand-Archive -Path vsix/package.zip -DestinationPath vsix/unpacked -Force
+      - name: Unpack the vsix (macOS)
+        if: runner.os != 'Windows'
         shell: bash
-        env:
-          CGO_ENABLED: "0"
+        run: unzip -q vsix/*.vsix -d vsix/unpacked
+      - name: Run the bundled ipm-rpc --version
+        shell: bash
         run: |
           ext=""; [ "${{ matrix.goos }}" = "windows" ] && ext=".exe"
-          go build -C ipm-tools -trimpath -o "$(pwd)/ipm-rpc${ext}" ./cmd/ipm-rpc
-          "./ipm-rpc${ext}" --version
+          bin="vsix/unpacked/extension/bin/${{ matrix.goos }}-${{ matrix.goarch }}/ipm-rpc${ext}"
+          if [ ! -f "$bin" ]; then
+            echo "the vsix does not bundle $bin"; find vsix/unpacked/extension/bin -type f || true; exit 1
+          fi
+          # Zip round-trips drop the executable bit; the extension chmods at
+          # resolution time and so must this check.
+          chmod +x "$bin" || true
+          "$bin" --version

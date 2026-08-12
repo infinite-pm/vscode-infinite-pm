@@ -34,6 +34,10 @@ First public release (not yet published — see the README for how to get a `.vs
   per-platform binary, with LSP auto-restart when the binary changes.
   `ipm.serverPath` is `machine-overridable`, so a workspace cannot choose
   which executable gets spawned.
+- A platform-specific `.vsix` for each of the nine targets VS Code resolves:
+  linux x64/arm64/armhf, alpine x64/arm64, darwin x64/arm64 and win32
+  x64/arm64. VS Code has no target-platform fallback, so an unbuilt platform
+  would be uninstallable rather than degraded.
 - Restricted workspaces are supported *limited*: highlighting works, but the
   server does not start and nothing is written to disk until the folder is
   trusted (the server then starts without a reload). Virtual workspaces are

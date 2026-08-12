@@ -24,7 +24,18 @@ export interface ServerInfo {
 // Performs a chmod +x on the candidate file (some .vsix extractions drop
 // the executable bit); ignores errors there.
 export function bundledBinaryPath(ctx: vscode.ExtensionContext): string | undefined {
-    const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+    // Directory names are GOOS-GOARCH, matching how the vsix is packaged. An
+    // architecture we do not ship for returns undefined rather than guessing:
+    // handing an amd64 binary to an ia32 or s390x host fails at exec time with
+    // a far less obvious error than falling through to PATH.
+    const arch = (() => {
+        switch (process.arch) {
+            case 'x64':   return 'amd64';
+            case 'arm64': return 'arm64';
+            case 'arm':   return 'arm';     // 32-bit ARM (linux-armhf vsix)
+            default:      return undefined;
+        }
+    })();
     const platform = (() => {
         switch (process.platform) {
             case 'darwin': return 'darwin';
@@ -33,7 +44,7 @@ export function bundledBinaryPath(ctx: vscode.ExtensionContext): string | undefi
             default:       return undefined;
         }
     })();
-    if (!platform) {
+    if (!platform || !arch) {
         return undefined;
     }
     const ext = platform === 'windows' ? '.exe' : '';
