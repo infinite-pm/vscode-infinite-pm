@@ -2,8 +2,13 @@
 
 ## Unreleased
 
-- The Marketplace icon is the infinite.pm mark, generated from the project's
-  logo set, instead of the placeholder drawn during release setup.
+- The Marketplace icon is the real infinite.pm logo — mark over the name —
+  instead of the placeholder drawn during release setup. It is generated from
+  the project's logo source as a cut made for this tile: square and cut tight,
+  since the editor and the Marketplace draw the box themselves and a margin of
+  our own only shrinks the name inside theirs.
+- The unused `media/icon.svg` is gone. Nothing referenced it and it was about a
+  fifth of the download.
 - The Marketplace summary leads with the infinite.pm project name.
 - The bundled `ipm-rpc` reports its release version again. Releases pin
   ipm-tools by resolved SHA, and a shallow tagless checkout left Go with no tag
