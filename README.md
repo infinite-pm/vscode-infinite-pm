@@ -135,10 +135,6 @@ The token palette's single source of truth lives in the [ipm-tools](https://gith
 - [ipm-intro](https://github.com/infinite-pm/ipm-intro) — newcomer documentation for the modeling notation.
 - [infinite.pm](https://infinite.pm) — the project.
 
-## Replaces `vscode-ipm-preview`
-
-This extension supersedes the older `vscode-ipm-preview`. If you used it: uninstall the old extension and migrate any custom settings under `ipm-preview.*` to their `ipm.*` equivalents.
-
 ## Authors & credits
 
 Created and maintained by [mj41](https://mj41.cz), spec-driven / "vibe-coded"

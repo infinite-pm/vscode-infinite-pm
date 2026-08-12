@@ -4,6 +4,7 @@
 
 - The Marketplace icon is the infinite.pm mark, generated from the project's
   logo set, instead of the placeholder drawn during release setup.
+- The Marketplace summary leads with the infinite.pm project name.
 - The bundled `ipm-rpc` reports its release version again. Releases pin
   ipm-tools by resolved SHA, and a shallow tagless checkout left Go with no tag
   to stamp, so `ipm-rpc --version` (and "Show Server Info") showed a

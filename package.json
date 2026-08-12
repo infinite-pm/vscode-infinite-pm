@@ -1,7 +1,7 @@
 {
   "name": "vscode-infinite-pm",
   "displayName": "infinite.pm",
-  "description": "ipmt language support and embed-on-save for infinite.pm (Infinite Process Modeling)",
+  "description": "infinite.pm (Infinite Process Modeling) — ipmt language support, diagnostics, and embed-on-save that keeps SVG diagrams in sync",
   "icon": "media/icon.png",
   "version": "0.4.1",
   "publisher": "infinite-pm",
