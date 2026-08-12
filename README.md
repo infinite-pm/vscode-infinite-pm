@@ -17,13 +17,22 @@ Language support for [Infinite Process Modeling (infinite.pm)](https://infinite.
 
 ## Installation
 
-Releases go to the
-[`infinite-pm` publisher](https://marketplace.visualstudio.com/publishers/infinite-pm)
-on the Visual Studio Marketplace and to [Open VSX](https://open-vsx.org) (for
-VSCodium, Cursor, Windsurf, Gitpod, code-server), plus a GitHub release carrying
-one `.vsix` per platform with `SHA256SUMS` and build provenance — see
-[RELEASING.md](RELEASING.md). Until a version is listed there, get a `.vsix` one
-of two ways:
+Install **infinite.pm** from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=infinite-pm.vscode-infinite-pm),
+or from a shell:
+
+```bash
+code --install-extension infinite-pm.vscode-infinite-pm
+```
+
+Every release also lands on the
+[releases page](https://github.com/infinite-pm/vscode-infinite-pm/releases) as one
+`.vsix` per platform with `SHA256SUMS` and build provenance — see
+[RELEASING.md](RELEASING.md). Open VSX (VSCodium, Cursor, Windsurf, Gitpod,
+code-server) is not published yet.
+
+To run something that has not been released yet — a fix on `main`, say — get a
+`.vsix` one of two ways:
 
 - **From CI** — the `package` job of every green build uploads one per platform as
   a workflow artifact (kept 14 days; needs access to the repo's Actions tab). The
@@ -31,7 +40,7 @@ of two ways:
 - **Build it yourself** — see [Development](#development) below (needs the sibling
   `ipm-tools` checkout), then `npm run package`.
 
-Install whichever you obtained:
+Then install the file you obtained:
 
 ```bash
 code --install-extension vscode-infinite-pm-<target>-X.Y.Z.vsix
