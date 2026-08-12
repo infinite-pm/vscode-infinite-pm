@@ -108,6 +108,11 @@ VSX step skips itself and says so in the run summary.
 
 - `OVSX_PAT` expires: _(fill in when phase 2 starts)_
 
+After the publish job finishes, the Marketplace shows the extension as
+**Verifying <version>** for a few minutes while it scans the upload; its public
+item page 404s until that clears. "Works with N" on the publisher page is the
+count of platform targets it accepted — nine, if every package uploaded.
+
 ## Where everything lives
 
 The chain of trust, once, in order: **GitHub** mints an OIDC token for a job in
