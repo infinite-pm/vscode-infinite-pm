@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- The bundled `ipm-rpc` reports its release version again. Releases pin
+  ipm-tools by resolved SHA, and a shallow tagless checkout left Go with no tag
+  to stamp, so `ipm-rpc --version` (and "Show Server Info") showed a
+  `v0.0.0-<time>-<sha>` pseudo-version instead of the tag it was built from.
+
 ## 0.4.1 — 2026-08-12
 
 First public release.
