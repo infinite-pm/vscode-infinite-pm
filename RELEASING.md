@@ -74,21 +74,26 @@ One-time setup:
    helper workflow *is* that first authentication.
 4. **Add it to the publisher** —
    <https://marketplace.visualstudio.com/manage/publishers/infinite-pm> → Members
-   → Add, paste the **profile id**, role **Contributor**. Contributor is what
+   → Add, paste the **profile id**, role **Contributor**. It appears in the list
+   as `<tenant-id>\<principal-id>`, which is how you can tell a machine identity
+   from a person there. Contributor is what
    Microsoft documents for a publishing identity and is the least privilege that
    can publish: it cannot manage members or delete the publisher.
 5. **Add a federated credential** on the managed identity (Settings → Federated
    credentials → Add credential → *GitHub Actions deploying Azure resources*):
-   - Organization `infinite-pm`, repository `vscode-infinite-pm`
+   - Organization `infinite-pm` + its **numeric org id**, repository
+     `vscode-infinite-pm` + its **numeric repo id**
+     (`gh api orgs/infinite-pm --jq .id`,
+     `gh api repos/infinite-pm/vscode-infinite-pm --jq .id`)
    - Entity type **Environment**, name **`release`**
-   - which auto-fills subject
-     `repo:infinite-pm/vscode-infinite-pm:environment:release`,
-     issuer `https://token.actions.githubusercontent.com`,
-     audience `api://AzureADTokenExchange`
+   - Audience stays `api://AzureADTokenExchange` — do not edit it
 
-   Let the portal fill the subject from those fields rather than typing it. A
-   wrong subject saves **without error** and only surfaces when the token
-   exchange fails at publish time.
+   The portal builds the *immutable* subject form,
+   `repo:<org>@<orgid>/<repo>@<repoid>:environment:release`, which pins the
+   numeric ids so a renamed org or repo cannot inherit the trust. **Confirmed
+   working** — that is what GitHub's token actually carries. Let the portal fill
+   it: a wrong subject saves **without error** and only surfaces when the token
+   exchange fails, as `AADSTS70021`.
 6. **Record the identity on the `release` environment** as *variables* (not
    secrets — neither value is sensitive):
    - `AZURE_CLIENT_ID` — the managed identity's client ID
