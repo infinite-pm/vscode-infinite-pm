@@ -1,0 +1,56 @@
+name: Marketplace identity id
+
+# One-off helper, run by hand: prints the Azure DevOps **profile id** of the
+# release identity.
+#
+# That profile id is the only identifier the Marketplace publisher's Members
+# list resolves. A managed identity's client id, object/principal id and ARM
+# resource id are all rejected there — the GUIDs with "TF14045: The identity
+# could not be found", the resource id with "Not a valid User Id" — because the
+# identity has no Azure DevOps profile until it has authenticated to Azure
+# DevOps at least once. This workflow is that first authentication: it logs in
+# as the identity over OIDC and asks VSSPS who it is, which both creates the
+# profile and prints its id.
+#
+# Run it (Actions → this workflow → Run workflow), paste the printed id into
+#   https://marketplace.visualstudio.com/manage/publishers/infinite-pm
+# → Members → Add, role Contributor. After that, release.yml can publish.
+#
+# 499b84ac-1321-427f-aa17-267ca6975798 is the Azure DevOps resource id — the
+# audience the token has to be issued for.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  profile-id:
+    runs-on: ubuntu-latest
+    # Same environment the federated credential trusts, so the OIDC subject
+    # matches: repo:infinite-pm/vscode-infinite-pm:environment:release
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Ask Azure DevOps who this identity is
+        run: |
+          set -euo pipefail
+          profile="$(az rest \
+            --url https://app.vssps.visualstudio.com/_apis/profile/profiles/me \
+            --resource 499b84ac-1321-427f-aa17-267ca6975798)"
+          echo "$profile"
+          id="$(echo "$profile" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+          echo "::notice title=Publisher member id::$id"
+          {
+            echo "## Add this to the publisher"
+            echo
+            echo '```'
+            echo "$id"
+            echo '```'
+            echo
+            echo "marketplace.visualstudio.com/manage/publishers/infinite-pm → Members → Add → role Contributor"
+          } >> "$GITHUB_STEP_SUMMARY"
