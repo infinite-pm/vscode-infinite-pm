@@ -8,6 +8,15 @@
 - A new extension icon: the infinite.pm logo, the mark over the project name.
 - The Marketplace summary leads with the project name, and names diagnostics
   alongside ipmt language support and embed-on-save.
+- One preview button in the `.ipmt` editor title bar instead of two: "Open
+  Preview" and "Open Preview to the Side" sat side by side with near-identical
+  icons and read as a duplicate. The bar now follows the built-in Markdown
+  preview exactly — a single "Open Preview to the Side" button whose `alt`
+  action (hold Alt / Option) is the in-place "Open Preview", which also keeps
+  its own icon.
+- Preview keybindings matching Markdown's: `Shift+Ctrl+V` (`Shift+Cmd+V`)
+  opens the preview in place and `Ctrl+K V` (`Cmd+K V`) opens it to the side,
+  both only while an `.ipmt` editor is focused.
 
 ## 0.4.1 — 2026-08-12
 

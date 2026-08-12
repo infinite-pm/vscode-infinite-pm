@@ -418,14 +418,10 @@
     "menus": {
       "editor/title": [
         {
-          "command": "infinite.pm.openPreview",
-          "group": "navigation@1",
-          "when": "editorLangId == ipmt"
-        },
-        {
           "command": "infinite.pm.openPreviewToSide",
-          "group": "navigation@2",
-          "when": "editorLangId == ipmt"
+          "alt": "infinite.pm.openPreview",
+          "group": "navigation@1",
+          "when": "editorLangId == ipmt && !notebookEditorFocused"
         },
         {
           "command": "infinite.pm.showSource",
@@ -502,7 +498,21 @@
           "when": "activeWebviewPanelId == 'ipmtPreview'"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "infinite.pm.openPreview",
+        "key": "shift+ctrl+v",
+        "mac": "shift+cmd+v",
+        "when": "editorLangId == ipmt && !notebookEditorFocused"
+      },
+      {
+        "command": "infinite.pm.openPreviewToSide",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "editorLangId == ipmt && !notebookEditorFocused"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
