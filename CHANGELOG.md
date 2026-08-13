@@ -14,28 +14,28 @@
   preview exactly — a single "Open Preview to the Side" button whose `alt`
   action (hold Alt / Option) is the in-place "Open Preview", which also keeps
   its own icon.
-- ipmt fences in the markdown preview stay coloured while you type. Two
+- ipmt fences in the markdown preview stay colored while you type. Two
   things went wrong before: live-refresh used a resetting debounce, so typing
   without a 300 ms pause never refreshed anything, and tokens are looked up by
   exact block source, so each keystroke missed the cache and the whole block
-  fell back to plain black text. Colours now refresh on every change through a
+  fell back to plain black text. Colors now refresh on every change through a
   `tokensOnly` server call that skips diagram layout (0.5–2 ms on a normal
   document), paced by a single-flight so a slow document simply refreshes less
   often instead of queueing calls. Diagrams keep the existing idle debounce —
   `ipm.liveRefreshDebounceMs` now describes that half only.
 - That refresh rate limits itself rather than adding a setting to tune: each
-  colour refresh waits out a cooldown as long as the call that preceded it
+  color refresh waits out a cooldown as long as the call that preceded it
   (capped at 250 ms), which holds the server's share of wall time near 50%
   whatever the machine. Measured while typing continuously: no change at all
   on a normal document or on a 95-block one, and 63% → 46% busy on a
-  simulated slow machine with no loss of coloured frames.
+  simulated slow machine with no loss of colored frames.
 - The preview no longer forces a full webview reload on the typing path; it
   lets VS Code's own preview refresh pick the new tokens up.
 - A slow in-flight render can no longer overwrite a newer diagram: responses
   for a superseded document revision are discarded.
 - Saving a `.md` no longer blanks every ipmt block in the preview. The save
   path evicted the whole live cache including the semantic tokens, and nothing
-  re-fired the server, so the blocks stayed uncoloured until the next
+  re-fired the server, so the blocks stayed uncolored until the next
   keystroke. It now evicts only the rendered SVGs, which is all the on-disk
   renders replace.
 - Preview keybindings matching Markdown's: `Shift+Ctrl+V` (`Shift+Cmd+V`)
