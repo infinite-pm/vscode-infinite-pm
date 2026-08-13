@@ -1,7 +1,6 @@
 **
 !dist/**
 !syntaxes/**
-!media/**
 !language-configuration.json
 !package.json
 !README.md
@@ -10,7 +9,17 @@
 !LICENSE
 !bin/**
 
-# Demo recordings live in the assets repository; the README links to them and
-# GitHub renders them from there. Shipping them in the .vsix would add megabytes
-# of GIF that nothing in the extension reads.
-media/demo/**
+# Media is listed file by file rather than as `!media/**` + an exclusion below
+# it. vsce applies every `!` re-include AFTER the ignore patterns, whatever the
+# order in this file, so a blanket `!media/**` cannot be narrowed afterwards —
+# which is how 0.4.2 shipped 2MB of demo GIF in each of its nine platform
+# packages. `npx vsce ls` is the check: it prints exactly what goes in.
+#
+# The demo recordings stay out on purpose. Nothing in the extension reads them;
+# the README embeds them by relative path and vsce rewrites those to absolute
+# GitHub URLs at package time, so the Marketplace page shows them without the
+# bytes riding along.
+!media/icon.png
+!media/ipm-preview.css
+!media/preview-light.svg
+!media/preview-dark.svg
