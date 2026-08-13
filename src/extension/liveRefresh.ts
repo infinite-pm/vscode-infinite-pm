@@ -218,6 +218,29 @@ function normalizeSource(s: string): string {
     return out;
 }
 
+// Upper bound on the self-imposed cooldown between token refreshes. Past
+// this the colors would lag more than the preview's own ~300 ms render
+// cadence, which is the point where a user notices staleness rather than
+// cost.
+const MAX_COOLDOWN_MS = 250;
+
+// cooldownMs returns how long to wait after a task of `lastDurationMs`
+// before starting the next one for the same key: as long as the last call
+// took, capped. That holds the duty cycle at roughly 50% whatever the
+// machine does, with no configuration to get wrong — a 1 ms round trip
+// imposes a 1 ms gap (invisible), while a 200 ms one on a slow box or a
+// remote filesystem stops the refreshes from running back to back.
+//
+// A fixed setting cannot do this: measured on a 3234-line, 95-block
+// document, floors below ~150 ms changed neither the call rate nor the cost
+// (the single-flight was already slower than that), and the first floor that
+// did cut cost also halved the number of colored preview renders. The right
+// bound is not a constant, it is the observed latency.
+export function cooldownMs(lastDurationMs: number): number {
+    if (!(lastDurationMs > 0)) return 0;
+    return Math.min(lastDurationMs, MAX_COOLDOWN_MS);
+}
+
 // SingleFlight coalesces repeated work per key: at most one task runs at a
 // time, and changes arriving mid-flight collapse into exactly one follow-up
 // run with the latest state. Intermediate keystrokes are dropped on purpose
@@ -231,15 +254,21 @@ function normalizeSource(s: string): string {
 export class SingleFlight {
     private inFlight = new Set<string>();
     private queued = new Map<string, () => Promise<void>>();
+    private cooling = new Set<string>();
+    private lastDuration = new Map<string, number>();
 
-    // run starts `task` for `key`, or — if one is already running — parks it
-    // as the single follow-up, replacing any previously parked task.
+    constructor(private readonly now: () => number = Date.now) { }
+
+    // run starts `task` for `key`, or — if one is already running or the key
+    // is cooling down — parks it as the single follow-up, replacing any
+    // previously parked task.
     run(key: string, task: () => Promise<void>): void {
-        if (this.inFlight.has(key)) {
+        if (this.inFlight.has(key) || this.cooling.has(key)) {
             this.queued.set(key, task);
             return;
         }
         this.inFlight.add(key);
+        const started = this.now();
         // The catch has to come BEFORE the finally: `finally` passes the
         // rejection through, so a failed task would surface as an unhandled
         // rejection in the extension host. Callers log their own failures;
@@ -248,17 +277,36 @@ export class SingleFlight {
             debugLog?.(`[live-refresh] single-flight task failed for ${key}: ${err}`);
         }).finally(() => {
             this.inFlight.delete(key);
-            const next = this.queued.get(key);
-            if (next) {
-                this.queued.delete(key);
-                this.run(key, next);
+            const duration = this.now() - started;
+            this.lastDuration.set(key, duration);
+            // Cool down whether or not anything is waiting: the bound has to
+            // hold for a typist who happens to land each keystroke right as
+            // the previous call returns, not just for a full queue.
+            const wait = cooldownMs(duration);
+            if (wait <= 0) {
+                this.drain(key);
+                return;
             }
+            this.cooling.add(key);
+            setTimeout(() => {
+                this.cooling.delete(key);
+                this.drain(key);
+            }, wait);
         });
+    }
+
+    // drain starts whatever was parked while this key was busy or cooling.
+    private drain(key: string): void {
+        const next = this.queued.get(key);
+        if (!next) return;
+        this.queued.delete(key);
+        this.run(key, next);
     }
 
     // Test introspection.
     isRunning(key: string): boolean { return this.inFlight.has(key); }
     hasQueued(key: string): boolean { return this.queued.has(key); }
+    isCooling(key: string): boolean { return this.cooling.has(key); }
 }
 
 // shouldApplyRender decides whether a just-arrived embedBuffer response may

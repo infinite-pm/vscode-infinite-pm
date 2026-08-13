@@ -36,7 +36,7 @@ moduleAny._resolveFilename = function (this: unknown, request: string, ...rest: 
 
 test.after(() => { moduleAny._resolveFilename = origResolve; });
 
-const { LiveCache, SingleFlight, shouldApplyRender, isTransientEmbedError } =
+const { LiveCache, SingleFlight, cooldownMs, shouldApplyRender, isTransientEmbedError } =
     require('../extension/liveRefresh') as typeof import('../extension/liveRefresh');
 
 test('set + get round-trip', () => {
@@ -251,7 +251,9 @@ test('shouldApplyRender discards responses for superseded revisions', () => {
 // --- single-flight pacing ------------------------------------------------
 
 test('SingleFlight runs one task at a time and coalesces the rest', async () => {
-    const flight = new SingleFlight();
+    // Zero clock: this test is about coalescing, not pacing — the cooldown
+    // has its own tests below.
+    const flight = new SingleFlight(() => 0);
     const started: string[] = [];
     let release: (() => void) | undefined;
     const blocked = (label: string) => () => {
@@ -305,6 +307,54 @@ test('SingleFlight releases the key when a task rejects', async () => {
     flight.run('a.md', () => { ran++; return Promise.resolve(); });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(ran, 1, 'the next edit must still fire');
+});
+
+// --- duty-cycle bound ----------------------------------------------------
+// Single-flight bounds how many calls are in the air (one), not what share
+// of wall time they occupy. On a slow machine — a 200ms round trip against
+// 90ms keystrokes — back-to-back refreshes would keep the server busy
+// continuously. The cooldown makes the share ~50% by construction, derived
+// from measured latency rather than a setting.
+
+test('cooldownMs mirrors the last call and caps at the preview cadence', () => {
+    assert.equal(cooldownMs(0), 0, 'an instant call imposes no gap');
+    assert.equal(cooldownMs(1), 1, 'a 1ms call: invisible');
+    assert.equal(cooldownMs(35), 35, 'a heavy document paces itself');
+    assert.equal(cooldownMs(2000), 250,
+        'never wait longer than the preview render cadence — past that the user reads it as staleness');
+    assert.equal(cooldownMs(-1), 0, 'a clock that went backwards must not wedge the key');
+});
+
+test('SingleFlight makes the next run wait out the cooldown', async () => {
+    // Fake the clock so the task "takes" 60ms without the test sleeping for
+    // it; the cooldown timer itself is real.
+    const clock = [0, 60];
+    const flight = new SingleFlight(() => clock.shift() ?? 60);
+    const started: string[] = [];
+
+    flight.run('a.md', () => { started.push('first'); return Promise.resolve(); });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(started, ['first']);
+    assert.ok(flight.isCooling('a.md'), 'a 60ms call must be followed by a cooldown');
+
+    flight.run('a.md', () => { started.push('second'); return Promise.resolve(); });
+    assert.deepEqual(started, ['first'], 'the follow-up waits rather than running back-to-back');
+
+    await new Promise(resolve => setTimeout(resolve, 90));
+    assert.deepEqual(started, ['first', 'second'], 'and runs once the cooldown expires');
+    assert.equal(flight.isCooling('a.md'), false);
+});
+
+test('SingleFlight imposes no cooldown when calls are instant', async () => {
+    // The common case: ~1ms round trips must stay effectively per-keystroke.
+    const flight = new SingleFlight(() => 0);
+    const started: string[] = [];
+    flight.run('a.md', () => { started.push('first'); return Promise.resolve(); });
+    await new Promise(resolve => setImmediate(resolve));
+    flight.run('a.md', () => { started.push('second'); return Promise.resolve(); });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(started, ['first', 'second']);
+    assert.equal(flight.isCooling('a.md'), false);
 });
 
 test('isTransientEmbedError: retries didOpen races and dead-connection errors', () => {

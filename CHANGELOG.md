@@ -23,6 +23,12 @@
   document), paced by a single-flight so a slow document simply refreshes less
   often instead of queueing calls. Diagrams keep the existing idle debounce —
   `ipm.liveRefreshDebounceMs` now describes that half only.
+- That refresh rate limits itself rather than adding a setting to tune: each
+  colour refresh waits out a cooldown as long as the call that preceded it
+  (capped at 250 ms), which holds the server's share of wall time near 50%
+  whatever the machine. Measured while typing continuously: no change at all
+  on a normal document or on a 95-block one, and 63% → 46% busy on a
+  simulated slow machine with no loss of coloured frames.
 - The preview no longer forces a full webview reload on the typing path; it
   lets VS Code's own preview refresh pick the new tokens up.
 - A slow in-flight render can no longer overwrite a newer diagram: responses
