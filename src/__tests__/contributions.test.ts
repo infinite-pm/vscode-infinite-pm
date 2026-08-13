@@ -107,3 +107,31 @@ test('preview keybindings match markdown and are scoped to .ipmt editors', () =>
         );
     }
 });
+
+// Beyond markdown: the same chord returns from the preview. openPreview and
+// showSource are exact mirrors — each opens in the other's column and closes
+// the tab it came from — so binding both to shift+ctrl+v makes it a toggle
+// rather than a one-way trip.
+test('shift+ctrl+v toggles source and preview in both directions', () => {
+    const chord = keybindings.filter((b) => b.key === 'shift+ctrl+v');
+
+    assert.deepEqual(
+        chord.map((b) => b.command).sort(),
+        ['infinite.pm.openPreview', 'infinite.pm.showSource'],
+        'the chord must be bound in both directions',
+    );
+
+    const back = chord.find((b) => b.command === 'infinite.pm.showSource');
+    assert.equal(
+        back?.when,
+        "activeWebviewPanelId == 'ipmtPreview'",
+        'the return trip belongs to the preview panel, and must not fire in a text editor',
+    );
+
+    // The two `when` clauses have to be mutually exclusive, or the chord is
+    // ambiguous: one requires a focused .ipmt text editor, the other a
+    // focused ipmt webview panel, and nothing can be both.
+    const forward = chord.find((b) => b.command === 'infinite.pm.openPreview');
+    assert.match(forward?.when ?? '', /editorLangId == ipmt/);
+    assert.doesNotMatch(forward?.when ?? '', /activeWebviewPanelId/);
+});

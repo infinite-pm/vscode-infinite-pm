@@ -40,7 +40,9 @@
   renders replace.
 - Preview keybindings matching Markdown's: `Shift+Ctrl+V` (`Shift+Cmd+V`)
   opens the preview in place and `Ctrl+K V` (`Cmd+K V`) opens it to the side,
-  both only while an `.ipmt` editor is focused.
+  both only while an `.ipmt` editor is focused. Unlike Markdown, the first
+  chord also works *inside* the preview, where it returns you to the source —
+  the two actions are exact mirrors, so one chord toggles the tab either way.
 
 ## 0.4.1 — 2026-08-12
 
