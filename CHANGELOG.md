@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.3 — 2026-08-13
+
+- A third smaller download. 0.4.2 packaged the two demo recordings the README
+  shows — 2 MB of GIF that nothing in the extension reads — into every platform
+  `.vsix`; they now stay in the repository, where the Marketplace page renders
+  them from anyway. 4.56 MB → 2.90 MB for linux-x64, and similarly elsewhere.
+  Nothing else changed: same code, same bundled server as 0.4.2.
+
 ## 0.4.2 — 2026-08-13
 
 - `ipm-rpc --version` and the "Show Server Info" command report the bundled
