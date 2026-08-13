@@ -9,3 +9,8 @@
 !AUTHORS.md
 !LICENSE
 !bin/**
+
+# Demo recordings live in the assets repository; the README links to them and
+# GitHub renders them from there. Shipping them in the .vsix would add megabytes
+# of GIF that nothing in the extension reads.
+media/demo/**
