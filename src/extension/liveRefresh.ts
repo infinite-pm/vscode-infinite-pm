@@ -9,6 +9,25 @@
 // a live entry exists, falling back to the on-disk path + `?v=<hash>`
 // otherwise.
 //
+// TWO CADENCES, because colors and diagrams need different freshness.
+//
+// The markdown preview looks tokens up by EXACT block source
+// (previewHighlight.ts), and VS Code re-renders that preview on its own
+// ~300 ms trailing throttle using the buffer text as of that moment. So a
+// token set for any revision other than the one being rendered is not
+// merely stale — it is unusable, and the block renders black. Waiting out
+// an idle debounce therefore cannot work: during continuous typing the
+// idle never arrives, and when it does the cache holds the text from the
+// request instant, not the render instant.
+//
+// Tokens are consequently refreshed on EVERY change via a `tokensOnly`
+// embedBuffer, which skips the SVG layout server-side (measured: 0.5-2 ms
+// on a normal document, 35 ms vs 110 ms on a 3200-line/95-block one).
+// A single-flight per URI keeps at most one call in the air, so the rate
+// self-tunes to whatever the server can sustain instead of queueing.
+// Diagrams keep the old idle debounce: an SVG that lags until you pause is
+// fine, a black code fence is not.
+//
 // Nothing here writes to disk. The .md and the committed SVG files
 // stay frozen at their last-saved state until the user saves and the
 // existing embed-on-save flow takes over. We evict the cache for a
@@ -31,6 +50,12 @@ export interface BufferToken {
     len: number;
     type: string; // "ipmEvent", "ipmThing", … (one of semanticTokenTypes)
     mods?: number; // bitmask matching semanticTokenModifiers
+}
+
+// Two rounds of source-keyed tokens for one URI. See LiveCache.tokensByUri.
+interface TokenGenerations {
+    current: Map<string, BufferToken[]>;
+    previous: Map<string, BufferToken[]>;
 }
 
 export interface LiveEntry {
@@ -56,7 +81,16 @@ export class LiveCache {
     // fence renderer using the block's `tok.content` (which is the raw
     // ipmt source between fences). Source-string keying is robust to
     // re-orderings; identical blocks resolve to the same tokens.
-    private tokensByUri = new Map<string, Map<string, BufferToken[]>>();
+    //
+    // Two generations, not one. `current` holds the newest response;
+    // `previous` holds the one before it. Firing on every keystroke would
+    // otherwise grow this map without bound (one new source per edit), and
+    // the older generation earns its keep: when two edits land in quick
+    // succession the preview can still be rendering the text of the
+    // previous one, and that render finds its exact source here rather
+    // than falling through to the uncolored branch. Both generations are
+    // exact-match keys — nothing approximate is ever served.
+    private tokensByUri = new Map<string, TokenGenerations>();
     private byteCount = 0;
     private static readonly SOFT_BYTE_CAP = 50 * 1024 * 1024; // 50 MB
 
@@ -79,6 +113,21 @@ export class LiveCache {
         return this.cache.get(uri)?.get(blockId);
     }
 
+    // beginTokenGeneration rotates the token generations for a URI: the
+    // current response's entries start empty, the entries from the previous
+    // response are retained one more round. Called once per embedBuffer
+    // response, before its setTokensForSource calls. Skipping it (as the
+    // unit tests do) simply keeps writing into the current generation.
+    beginTokenGeneration(uri: string): void {
+        const g = this.tokensByUri.get(uri);
+        if (!g) {
+            this.tokensByUri.set(uri, { current: new Map(), previous: new Map() });
+            return;
+        }
+        g.previous = g.current;
+        g.current = new Map();
+    }
+
     // setTokensForSource stores tokens for a block by URI + raw source.
     // Called by the live-refresh listener once per embedBuffer response,
     // alongside `set(uri, blockId, entry)`.
@@ -88,31 +137,44 @@ export class LiveCache {
     // `tok.content` for a fenced block ALWAYS has a trailing newline.
     // Strip the trailing newline before keying so the two byte-match.
     setTokensForSource(uri: string, source: string, tokens: BufferToken[]): void {
-        let m = this.tokensByUri.get(uri);
-        if (!m) {
-            m = new Map();
-            this.tokensByUri.set(uri, m);
+        let g = this.tokensByUri.get(uri);
+        if (!g) {
+            g = { current: new Map(), previous: new Map() };
+            this.tokensByUri.set(uri, g);
         }
-        m.set(normalizeSource(source), tokens);
+        g.current.set(normalizeSource(source), tokens);
     }
 
     // getTokensForSource returns the tokens for a block whose raw text
     // matches `source`. If `uri` is provided, restricts the lookup to that
     // URI. Otherwise scans all URIs (used when the fence renderer can't
-    // extract a URI from env).
+    // extract a URI from env). The newest generation wins; the previous one
+    // is consulted only on a miss.
     getTokensForSource(uri: string | undefined, source: string): BufferToken[] | undefined {
         const key = normalizeSource(source);
         if (uri) {
-            return this.tokensByUri.get(uri)?.get(key);
+            const g = this.tokensByUri.get(uri);
+            return g && (g.current.get(key) ?? g.previous.get(key));
         }
-        for (const m of this.tokensByUri.values()) {
-            const hit = m.get(key);
+        for (const g of this.tokensByUri.values()) {
+            const hit = g.current.get(key) ?? g.previous.get(key);
             if (hit) return hit;
         }
         return undefined;
     }
 
     delete(uri: string): void {
+        this.deleteSvgs(uri);
+        this.tokensByUri.delete(uri);
+    }
+
+    // deleteSvgs drops the rendered-SVG entries for a URI but KEEPS its
+    // tokens. Used on save, where the on-disk SVGs become authoritative
+    // again (cachebust falls back to the disk path + `?v=<hash>`) but the
+    // buffer text — and therefore every token key — is unchanged. Evicting
+    // tokens there used to blank every ipmt block in the preview until the
+    // next keystroke, since nothing re-fires embedBuffer on save.
+    deleteSvgs(uri: string): void {
         const m = this.cache.get(uri);
         if (m) {
             for (const e of m.values()) {
@@ -120,7 +182,6 @@ export class LiveCache {
             }
             this.cache.delete(uri);
         }
-        this.tokensByUri.delete(uri);
     }
 
     clear(): void {
@@ -155,6 +216,61 @@ function normalizeSource(s: string): string {
     let out = s.replace(/\r\n/g, '\n');
     while (out.endsWith('\n')) out = out.slice(0, -1);
     return out;
+}
+
+// SingleFlight coalesces repeated work per key: at most one task runs at a
+// time, and changes arriving mid-flight collapse into exactly one follow-up
+// run with the latest state. Intermediate keystrokes are dropped on purpose
+// — only the newest buffer text can produce a usable token set.
+//
+// This is what replaces a debounce on the token path. A debounce guesses a
+// fixed idle period and never fires while you type; single-flight instead
+// paces itself off the server's measured latency: ~1 ms round trips mean
+// effectively per-keystroke refreshes, and a 35 ms document simply refreshes
+// less often, without ever queueing calls behind each other.
+export class SingleFlight {
+    private inFlight = new Set<string>();
+    private queued = new Map<string, () => Promise<void>>();
+
+    // run starts `task` for `key`, or — if one is already running — parks it
+    // as the single follow-up, replacing any previously parked task.
+    run(key: string, task: () => Promise<void>): void {
+        if (this.inFlight.has(key)) {
+            this.queued.set(key, task);
+            return;
+        }
+        this.inFlight.add(key);
+        // The catch has to come BEFORE the finally: `finally` passes the
+        // rejection through, so a failed task would surface as an unhandled
+        // rejection in the extension host. Callers log their own failures;
+        // this is the backstop that keeps the key from wedging.
+        void task().catch(err => {
+            debugLog?.(`[live-refresh] single-flight task failed for ${key}: ${err}`);
+        }).finally(() => {
+            this.inFlight.delete(key);
+            const next = this.queued.get(key);
+            if (next) {
+                this.queued.delete(key);
+                this.run(key, next);
+            }
+        });
+    }
+
+    // Test introspection.
+    isRunning(key: string): boolean { return this.inFlight.has(key); }
+    hasQueued(key: string): boolean { return this.queued.has(key); }
+}
+
+// shouldApplyRender decides whether a just-arrived embedBuffer response may
+// overwrite the cached SVGs for a URI.
+//
+// Tokens need no such guard — they are content-addressed, so an out-of-order
+// response can only re-add tokens for the exact text it was computed from.
+// SVGs are keyed by block id, so a slow response for an older revision would
+// otherwise clobber a newer diagram and leave it wrong until the next edit.
+// Responses for a revision older than what is already applied are discarded.
+export function shouldApplyRender(applied: number | undefined, incoming: number): boolean {
+    return applied === undefined || incoming >= applied;
 }
 
 interface EmbedBufferBlock {
@@ -193,6 +309,10 @@ export function wireLiveRefresh(
     debugLog = (s: string) => log.appendLine(s);
 
     const debouncers = new Map<string, NodeJS.Timeout>();
+    const tokenFlight = new SingleFlight();
+    // Highest document version whose SVGs have been written to the cache,
+    // per URI. Guards against out-of-order responses; see shouldApplyRender.
+    const appliedRenderVersion = new Map<string, number>();
 
     // `fire` schedules a debounced embedBuffer; `fireNow` runs it
     // immediately. The immediate path is used for file open + extension
@@ -205,12 +325,26 @@ export function wireLiveRefresh(
             return;
         }
         log.appendLine(`[live-refresh] eager fire for ${doc.uri.fsPath}`);
-        await runEmbedBuffer(client, doc, cache, log);
+        await runEmbedBuffer(client, doc, cache, log, { appliedRenderVersion });
         try {
             await vscode.commands.executeCommand('markdown.preview.refresh');
         } catch (err) {
             log.appendLine(`[live-refresh] markdown.preview.refresh failed: ${err}`);
         }
+    };
+
+    // fireTokens refreshes ONLY the semantic tokens, on every change. No
+    // debounce and no preview nudge: VS Code re-renders the preview on its
+    // own ~300 ms throttle after any edit, and by then the tokens for the
+    // text it renders are already cached. Forcing `markdown.preview.refresh`
+    // here would instead rebuild the whole webview on every keystroke.
+    const fireTokens = (doc: vscode.TextDocument) => {
+        const cfg = vscode.workspace.getConfiguration('ipm');
+        if (!cfg.get<boolean>('liveRefresh', true)) {
+            return;
+        }
+        tokenFlight.run(doc.uri.toString(), () =>
+            runEmbedBuffer(client, doc, cache, log, { tokensOnly: true }));
     };
 
     const fire = async (doc: vscode.TextDocument) => {
@@ -226,7 +360,7 @@ export function wireLiveRefresh(
         log.appendLine(`[live-refresh] change observed for ${doc.uri.fsPath}; debouncing ${delay}ms`);
         debouncers.set(key, setTimeout(async () => {
             debouncers.delete(key);
-            await runEmbedBuffer(client, doc, cache, log);
+            await runEmbedBuffer(client, doc, cache, log, { appliedRenderVersion });
             // Nudge the preview so the new data URLs land in the rendered DOM.
             log.appendLine('[live-refresh] calling markdown.preview.refresh');
             try {
@@ -239,6 +373,7 @@ export function wireLiveRefresh(
 
     const subChange = vscode.workspace.onDidChangeTextDocument(e => {
         if (e.document.languageId !== 'markdown') return;
+        fireTokens(e.document);
         void fire(e.document);
     });
     const subOpen = vscode.workspace.onDidOpenTextDocument(doc => {
@@ -247,11 +382,18 @@ export function wireLiveRefresh(
     });
     const subSave = vscode.workspace.onDidSaveTextDocument(doc => {
         if (doc.languageId !== 'markdown') return;
-        cache.delete(doc.uri.toString());
+        // SVGs only: on save the on-disk renders become authoritative
+        // again, but the text — and so every token key — is unchanged, and
+        // nothing re-fires embedBuffer on this path. Dropping the tokens
+        // here left every ipmt block black until the next keystroke.
+        cache.deleteSvgs(doc.uri.toString());
     });
     const subClose = vscode.workspace.onDidCloseTextDocument(doc => {
         if (doc.languageId !== 'markdown') return;
         cache.delete(doc.uri.toString());
+        // VS Code restarts document versions at 1 on reopen, so a stale
+        // high-water mark here would discard every subsequent render.
+        appliedRenderVersion.delete(doc.uri.toString());
     });
     // Server-crash recovery. vscode-languageclient auto-respawns a crashed
     // server process ("Connection to server got closed. Server will
@@ -311,14 +453,28 @@ export function isTransientEmbedError(err: unknown): boolean {
         || msg.includes('client is not running');
 }
 
+interface EmbedBufferOptions {
+    // Ask the server to skip the SVG layout and return source + tokens
+    // only. Used by the per-keystroke color path.
+    tokensOnly?: boolean;
+    // High-water mark of applied document versions, per URI. Required for
+    // calls that write SVGs; omitted (with tokensOnly) for token refreshes,
+    // which cannot go out of order in a harmful way.
+    appliedRenderVersion?: Map<string, number>;
+}
+
 async function runEmbedBuffer(
     client: LanguageClient,
     doc: vscode.TextDocument,
     cache: LiveCache,
     log: vscode.OutputChannel,
+    opts: EmbedBufferOptions = {},
 ): Promise<void> {
     const uriStr = doc.uri.toString();
-    log.appendLine(`[live-refresh] -> ipm.embedBuffer ${uriStr}`);
+    // Snapshot the revision this request will describe. The buffer keeps
+    // moving while the round trip is in flight.
+    const requestVersion = doc.version;
+    log.appendLine(`[live-refresh] -> ipm.embedBuffer ${uriStr}${opts.tokensOnly ? ' (tokensOnly)' : ''} v${requestVersion}`);
     let res: EmbedBufferResult | null = null;
     let lastErr: unknown = undefined;
     for (let attempt = 0; attempt <= EMBED_NOT_OPEN_RETRIES; attempt++) {
@@ -327,7 +483,7 @@ async function runEmbedBuffer(
                 'workspace/executeCommand',
                 {
                     command: 'ipm.embedBuffer',
-                    arguments: [{ uri: uriStr }],
+                    arguments: [{ uri: uriStr, tokensOnly: opts.tokensOnly === true }],
                 },
             );
             lastErr = undefined;
@@ -359,6 +515,23 @@ async function runEmbedBuffer(
             log.appendLine('[live-refresh] <- res has no .blocks field; got: ' + JSON.stringify(res).slice(0, 200));
             return;
         }
+        // Every response describes one whole revision of the document, so
+        // its tokens form one generation. Rotating here (rather than per
+        // block) keeps the map bounded at two responses' worth of entries
+        // no matter how fast the user types.
+        cache.beginTokenGeneration(uriStr);
+
+        // An older response must not overwrite newer SVGs. Tokens are
+        // exempt: keyed by their own source text, they can only ever be
+        // served to a render of exactly that text.
+        const applyRender = !opts.tokensOnly && shouldApplyRender(
+            opts.appliedRenderVersion?.get(uriStr), requestVersion);
+        if (applyRender) {
+            opts.appliedRenderVersion?.set(uriStr, requestVersion);
+        } else if (!opts.tokensOnly) {
+            log.appendLine(`[live-refresh] discarding SVGs from superseded v${requestVersion}`);
+        }
+
         let stored = 0;
         let skipped = 0;
         let tokensStored = 0;
@@ -370,7 +543,7 @@ async function runEmbedBuffer(
                 cache.setTokensForSource(uriStr, b.source, b.tokens);
                 tokensStored++;
             }
-            if (!b.svgBase64) {
+            if (!applyRender || !b.svgBase64) {
                 // Parse error / unterminated / malformed this run. Leave any
                 // previously-cached entry for this block in place so the
                 // preview doesn't flicker back to the disk SVG mid-edit.

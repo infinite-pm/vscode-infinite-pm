@@ -338,12 +338,12 @@
         "ipm.liveRefresh": {
           "type": "boolean",
           "default": true,
-          "description": "Refresh ipmt diagrams in the markdown preview as you type, without requiring a save. The LSP server renders each ipmt block from the current buffer and the preview swaps the rendered <img> for a data: URL until the next save. Applies to the markdown preview only — the `.ipmt` preview pane always re-renders as you type (it only reads `ipm.liveRefreshDebounceMs`)."
+          "description": "Refresh ipmt blocks in the markdown preview as you type, without requiring a save. Fence colors refresh on every keystroke (tokens only, no diagram layout); diagrams re-render once you pause, and the preview swaps the rendered <img> for a data: URL until the next save. Applies to the markdown preview only — the `.ipmt` preview pane always re-renders as you type (it only reads `ipm.liveRefreshDebounceMs`)."
         },
         "ipm.liveRefreshDebounceMs": {
           "type": "number",
           "default": 300,
-          "description": "Idle time (ms) after the last keystroke before live-refresh fires. 0 = fire immediately on every change (heavier). 300 ms is the default — feels instantaneous and avoids re-rendering during fast typing."
+          "description": "Idle time (ms) after the last keystroke before the DIAGRAM re-renders. 0 = re-render on every change (heavier). 300 ms is the default — it avoids laying out SVGs during fast typing. Fence colors ignore this: they refresh on every keystroke, paced by the server's own round trip, because the preview cannot color text it has no tokens for."
         },
         "ipm.restartOnBinaryChange": {
           "type": "boolean",

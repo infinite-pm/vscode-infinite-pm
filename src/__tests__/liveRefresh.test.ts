@@ -36,7 +36,8 @@ moduleAny._resolveFilename = function (this: unknown, request: string, ...rest: 
 
 test.after(() => { moduleAny._resolveFilename = origResolve; });
 
-const { LiveCache, isTransientEmbedError } = require('../extension/liveRefresh') as typeof import('../extension/liveRefresh');
+const { LiveCache, SingleFlight, shouldApplyRender, isTransientEmbedError } =
+    require('../extension/liveRefresh') as typeof import('../extension/liveRefresh');
 
 test('set + get round-trip', () => {
     const c = new LiveCache();
@@ -153,6 +154,157 @@ test('delete(uri) evicts tokens for that URI too', () => {
     c.setTokensForSource('file:///a.md', 'src', [{ line: 0, col: 0, len: 3, type: 'ipmEvent' }]);
     c.delete('file:///a.md');
     assert.equal(c.getTokensForSource('file:///a.md', 'src'), undefined);
+});
+
+// --- token generations -------------------------------------------------
+// Tokens refresh on every keystroke, so the source-keyed map would grow
+// without bound if a response did not retire the one before it. Two
+// generations are kept: the newest, plus one round of grace for a preview
+// render that is still working on the previous revision.
+
+test('a new token generation retires the generation before last', () => {
+    const c = new LiveCache();
+    const t = [{ line: 0, col: 0, len: 1, type: 'ipmEvent' }];
+    const uri = 'file:///a.md';
+
+    c.beginTokenGeneration(uri);
+    c.setTokensForSource(uri, 'gen1', t);
+    c.beginTokenGeneration(uri);
+    c.setTokensForSource(uri, 'gen2', t);
+
+    // Newest plus one round of grace.
+    assert.deepEqual(c.getTokensForSource(uri, 'gen2'), t);
+    assert.deepEqual(c.getTokensForSource(uri, 'gen1'), t, 'previous generation stays readable');
+
+    c.beginTokenGeneration(uri);
+    c.setTokensForSource(uri, 'gen3', t);
+    assert.deepEqual(c.getTokensForSource(uri, 'gen3'), t);
+    assert.deepEqual(c.getTokensForSource(uri, 'gen2'), t);
+    assert.equal(c.getTokensForSource(uri, 'gen1'), undefined,
+        'two generations back must be evicted — otherwise per-keystroke firing leaks');
+});
+
+test('the newest generation wins when both hold the same source', () => {
+    const c = new LiveCache();
+    const stale = [{ line: 0, col: 0, len: 1, type: 'ipmThing' }];
+    const fresh = [{ line: 0, col: 0, len: 1, type: 'ipmEvent' }];
+    const uri = 'file:///a.md';
+
+    c.beginTokenGeneration(uri);
+    c.setTokensForSource(uri, 'A ::e', stale);
+    c.beginTokenGeneration(uri);
+    c.setTokensForSource(uri, 'A ::e', fresh);
+
+    assert.deepEqual(c.getTokensForSource(uri, 'A ::e'), fresh);
+});
+
+test('generation rotation is per URI', () => {
+    const c = new LiveCache();
+    const t = [{ line: 0, col: 0, len: 1, type: 'ipmEvent' }];
+    c.setTokensForSource('file:///a.md', 'shared', t);
+    // Two rotations on b.md must not touch a.md's tokens.
+    c.beginTokenGeneration('file:///b.md');
+    c.beginTokenGeneration('file:///b.md');
+    assert.deepEqual(c.getTokensForSource('file:///a.md', 'shared'), t);
+});
+
+// --- save must not blank the preview ------------------------------------
+
+test('deleteSvgs drops rendered SVGs but keeps tokens (the save path)', () => {
+    // Saving evicts SVGs because the on-disk renders take over, but the
+    // buffer text is unchanged — dropping tokens there left every ipmt
+    // block uncolored until the next keystroke, since nothing re-fires
+    // embedBuffer on save.
+    const c = new LiveCache();
+    const uri = 'file:///a.md';
+    const tokens = [{ line: 0, col: 0, len: 5, type: 'ipmEvent' }];
+    c.set(uri, '01', { hash: 'aa', dataUrl: 'data:image/svg+xml;base64,XXX' });
+    c.setTokensForSource(uri, 'A ::e', tokens);
+
+    c.deleteSvgs(uri);
+
+    assert.equal(c.get(uri, '01'), undefined, 'SVG entry must go');
+    assert.equal(c.bytes(), 0, 'byte accounting must follow the eviction');
+    assert.deepEqual(c.getTokensForSource(uri, 'A ::e'), tokens, 'tokens must survive a save');
+});
+
+test('delete(uri) still drops both maps (the close path)', () => {
+    const c = new LiveCache();
+    const uri = 'file:///a.md';
+    c.set(uri, '01', { hash: 'aa', dataUrl: 'data:x' });
+    c.setTokensForSource(uri, 'A ::e', [{ line: 0, col: 0, len: 5, type: 'ipmEvent' }]);
+    c.delete(uri);
+    assert.equal(c.get(uri, '01'), undefined);
+    assert.equal(c.getTokensForSource(uri, 'A ::e'), undefined);
+});
+
+// --- out-of-order responses ---------------------------------------------
+
+test('shouldApplyRender discards responses for superseded revisions', () => {
+    assert.equal(shouldApplyRender(undefined, 1), true, 'first response always applies');
+    assert.equal(shouldApplyRender(5, 6), true, 'newer revision applies');
+    assert.equal(shouldApplyRender(5, 5), true, 're-render of the same revision applies');
+    assert.equal(shouldApplyRender(5, 4), false,
+        'an older in-flight response must not clobber newer SVGs');
+});
+
+// --- single-flight pacing ------------------------------------------------
+
+test('SingleFlight runs one task at a time and coalesces the rest', async () => {
+    const flight = new SingleFlight();
+    const started: string[] = [];
+    let release: (() => void) | undefined;
+    const blocked = (label: string) => () => {
+        started.push(label);
+        return new Promise<void>(resolve => { release = resolve; });
+    };
+
+    flight.run('a.md', blocked('first'));
+    assert.deepEqual(started, ['first']);
+    assert.ok(flight.isRunning('a.md'));
+
+    // Three more edits while the first call is in the air: only the LAST
+    // one survives — intermediate buffer states are unusable anyway.
+    flight.run('a.md', blocked('second'));
+    flight.run('a.md', blocked('third'));
+    flight.run('a.md', blocked('fourth'));
+    assert.deepEqual(started, ['first'], 'nothing may start while one is running');
+    assert.ok(flight.hasQueued('a.md'));
+
+    release?.();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(started, ['first', 'fourth'], 'only the newest queued task runs');
+
+    release?.();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(flight.isRunning('a.md'), false);
+    assert.equal(flight.hasQueued('a.md'), false);
+});
+
+test('SingleFlight keys are independent per document', () => {
+    const flight = new SingleFlight();
+    const started: string[] = [];
+    const blocked = (label: string) => () => {
+        started.push(label);
+        return new Promise<void>(() => { /* never settles */ });
+    };
+    flight.run('a.md', blocked('a'));
+    flight.run('b.md', blocked('b'));
+    assert.deepEqual(started, ['a', 'b'], 'one document must not block another');
+});
+
+test('SingleFlight releases the key when a task rejects', async () => {
+    // A failed embedBuffer (server crash mid-request) must not wedge the
+    // token path for the rest of the session.
+    const flight = new SingleFlight();
+    let ran = 0;
+    flight.run('a.md', () => Promise.reject(new Error('connection got disposed')));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(flight.isRunning('a.md'), false, 'a rejection must clear in-flight state');
+
+    flight.run('a.md', () => { ran++; return Promise.resolve(); });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(ran, 1, 'the next edit must still fire');
 });
 
 test('isTransientEmbedError: retries didOpen races and dead-connection errors', () => {

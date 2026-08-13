@@ -14,6 +14,24 @@
   preview exactly — a single "Open Preview to the Side" button whose `alt`
   action (hold Alt / Option) is the in-place "Open Preview", which also keeps
   its own icon.
+- ipmt fences in the markdown preview stay coloured while you type. Two
+  things went wrong before: live-refresh used a resetting debounce, so typing
+  without a 300 ms pause never refreshed anything, and tokens are looked up by
+  exact block source, so each keystroke missed the cache and the whole block
+  fell back to plain black text. Colours now refresh on every change through a
+  `tokensOnly` server call that skips diagram layout (0.5–2 ms on a normal
+  document), paced by a single-flight so a slow document simply refreshes less
+  often instead of queueing calls. Diagrams keep the existing idle debounce —
+  `ipm.liveRefreshDebounceMs` now describes that half only.
+- The preview no longer forces a full webview reload on the typing path; it
+  lets VS Code's own preview refresh pick the new tokens up.
+- A slow in-flight render can no longer overwrite a newer diagram: responses
+  for a superseded document revision are discarded.
+- Saving a `.md` no longer blanks every ipmt block in the preview. The save
+  path evicted the whole live cache including the semantic tokens, and nothing
+  re-fired the server, so the blocks stayed uncoloured until the next
+  keystroke. It now evicts only the rendered SVGs, which is all the on-disk
+  renders replace.
 - Preview keybindings matching Markdown's: `Shift+Ctrl+V` (`Shift+Cmd+V`)
   opens the preview in place and `Ctrl+K V` (`Cmd+K V`) opens it to the side,
   both only while an `.ipmt` editor is focused.
