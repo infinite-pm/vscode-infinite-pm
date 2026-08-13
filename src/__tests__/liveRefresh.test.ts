@@ -17,14 +17,28 @@ moduleAny._resolveFilename = function (this: unknown, request: string, ...rest: 
     if (request === 'vscode-languageclient/node') return '__ipm_lc_stub_live__';
     return origResolve.call(this, request, ...rest);
 };
+// Settings the stubbed `vscode.workspace.getConfiguration` reports; empty
+// means "extension default". Tests that care set entries and reset after.
+const settings: Record<string, unknown> = {};
+// Event handlers wireLiveRefresh registers, captured so a test can fire them.
+const listeners: Record<string, ((arg: never) => void) | undefined> = {};
+const capture = (name: string) => (fn: (arg: never) => void) => {
+    listeners[name] = fn;
+    return { dispose() { /* noop */ } };
+};
+
 (require as unknown as { cache: Record<string, unknown> }).cache['__ipm_vscode_stub_live__'] = {
     id: '__ipm_vscode_stub_live__', filename: '__ipm_vscode_stub_live__',
     loaded: true, exports: {
         workspace: {
-            getConfiguration: () => ({ get: (_: string, def: unknown) => def }),
-            onDidChangeTextDocument: () => ({ dispose() { /* noop */ } }),
-            onDidSaveTextDocument: () => ({ dispose() { /* noop */ } }),
-            onDidCloseTextDocument: () => ({ dispose() { /* noop */ } }),
+            getConfiguration: () => ({
+                get: (key: string, def: unknown) => (key in settings ? settings[key] : def),
+            }),
+            onDidChangeTextDocument: capture('change'),
+            onDidOpenTextDocument: capture('open'),
+            onDidSaveTextDocument: capture('save'),
+            onDidCloseTextDocument: capture('close'),
+            textDocuments: [] as unknown[],
         },
         commands: { executeCommand: () => Promise.resolve() },
     }, children: [], paths: [],
@@ -36,8 +50,82 @@ moduleAny._resolveFilename = function (this: unknown, request: string, ...rest: 
 
 test.after(() => { moduleAny._resolveFilename = origResolve; });
 
-const { LiveCache, SingleFlight, cooldownMs, shouldApplyRender, isTransientEmbedError } =
+const { LiveCache, SingleFlight, cooldownMs, shouldApplyRender, isTransientEmbedError, wireLiveRefresh } =
     require('../extension/liveRefresh') as typeof import('../extension/liveRefresh');
+
+// --- ipm.liveRefresh gates diagrams, never colors -----------------------
+// Found the hard way: a demo scene set ipm.liveRefresh=false to keep the
+// preview showing the committed diagram, and every ipmt fence in that
+// preview rendered black. The setting had been gating every embedBuffer
+// call, and the markdown preview has no other source of tokens — so a
+// switch about diagrams was silently turning off syntax highlighting.
+
+interface RecordedRequest { command: string; args: Record<string, unknown> }
+
+function wireWithFakes(): RecordedRequest[] {
+    const requests: RecordedRequest[] = [];
+    const client = {
+        sendRequest: (_method: string, params: { command: string; arguments: unknown[] }) => {
+            requests.push({
+                command: params.command,
+                args: (params.arguments[0] ?? {}) as Record<string, unknown>,
+            });
+            return Promise.resolve({ uri: 'file:///a.md', blocks: [] });
+        },
+        onDidChangeState: () => ({ dispose() { /* noop */ } }),
+    };
+    const ctx = { subscriptions: [] as unknown[] };
+    const log = { appendLine() { /* noop */ } };
+
+    wireLiveRefresh(
+        ctx as never,
+        client as never,
+        new LiveCache(),
+        log as never,
+    );
+    return requests;
+}
+
+const fakeDoc = {
+    uri: { toString: () => 'file:///a.md', fsPath: '/a.md' },
+    languageId: 'markdown',
+    version: 2,
+};
+
+test('a text change still refreshes colors when ipm.liveRefresh is off', async () => {
+    // The stub's getConfiguration ignores the section, so the bare key is
+    // what `getConfiguration('ipm').get('liveRefresh')` reads.
+    settings['liveRefresh'] = false;
+    try {
+        const requests = wireWithFakes();
+        listeners['change']?.({ document: fakeDoc } as never);
+        await new Promise(resolve => setImmediate(resolve));
+
+        assert.deepEqual(
+            requests.map(r => `${r.command} tokensOnly=${r.args.tokensOnly}`),
+            ['ipm.embedBuffer tokensOnly=true'],
+            'colors must refresh, and must not drag a diagram render along with them',
+        );
+    } finally {
+        delete settings['liveRefresh'];
+    }
+});
+
+test('a text change refreshes both colors and diagrams by default', async () => {
+    const requests = wireWithFakes();
+    listeners['change']?.({ document: fakeDoc } as never);
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.deepEqual(requests.map(r => r.args.tokensOnly), [true],
+        'the immediate call is colors-only; the diagram follows on the debounce');
+});
+
+test('a non-markdown document is ignored on both paths', async () => {
+    const requests = wireWithFakes();
+    listeners['change']?.({ document: { ...fakeDoc, languageId: 'plaintext' } } as never);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(requests, []);
+});
 
 test('set + get round-trip', () => {
     const c = new LiveCache();

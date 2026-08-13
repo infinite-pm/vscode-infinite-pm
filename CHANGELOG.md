@@ -29,6 +29,12 @@
   whatever the machine. Measured while typing continuously: no change at all
   on a normal document or on a 95-block one, and 63% → 46% busy on a
   simulated slow machine with no loss of colored frames.
+- `ipm.liveRefresh: false` no longer leaves every ipmt fence in the markdown
+  preview black. The setting is about diagrams re-rendering from the unsaved
+  buffer, but it gated every `ipm.embedBuffer` call — and those tokens are the
+  preview's only source of colour, so switching it off took the fence
+  highlighting with it, saved files included. It now gates the diagram swap
+  alone; colours refresh either way.
 - The preview no longer forces a full webview reload on the typing path; it
   lets VS Code's own preview refresh pick the new tokens up.
 - A slow in-flight render can no longer overwrite a newer diagram: responses

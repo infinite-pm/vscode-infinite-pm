@@ -309,6 +309,15 @@ export class SingleFlight {
     isCooling(key: string): boolean { return this.cooling.has(key); }
 }
 
+// liveDiagrams reports whether `ipm.liveRefresh` allows re-rendering the
+// preview's DIAGRAMS from the unsaved buffer. It does not gate the fence
+// colors: those are the preview's syntax highlighting and follow the editor
+// pane, whose highlighting no diagram setting switches off. Read fresh on
+// every call so a settings change takes effect without a reload.
+function liveDiagrams(): boolean {
+    return vscode.workspace.getConfiguration('ipm').get<boolean>('liveRefresh', true) !== false;
+}
+
 // shouldApplyRender decides whether a just-arrived embedBuffer response may
 // overwrite the cached SVGs for a URI.
 //
@@ -367,13 +376,16 @@ export function wireLiveRefresh(
     // activation so the LSP token cache is populated before the user
     // sees the preview for the first time. Without this a cold-open file
     // shows its ipmt blocks uncolored until the first embedBuffer lands.
+    //
+    // `ipm.liveRefresh` gates the DIAGRAM only — see liveDiagrams(). Tokens
+    // are fetched either way, so a cold open colors the fence even with live
+    // refresh switched off.
     const fireNow = async (doc: vscode.TextDocument) => {
-        const cfg = vscode.workspace.getConfiguration('ipm');
-        if (!cfg.get<boolean>('liveRefresh', true)) {
-            return;
-        }
-        log.appendLine(`[live-refresh] eager fire for ${doc.uri.fsPath}`);
-        await runEmbedBuffer(client, doc, cache, log, { appliedRenderVersion });
+        const opts: EmbedBufferOptions = liveDiagrams()
+            ? { appliedRenderVersion }
+            : { tokensOnly: true };
+        log.appendLine(`[live-refresh] eager fire for ${doc.uri.fsPath}${opts.tokensOnly ? ' (colors only)' : ''}`);
+        await runEmbedBuffer(client, doc, cache, log, opts);
         try {
             await vscode.commands.executeCommand('markdown.preview.refresh');
         } catch (err) {
@@ -386,19 +398,21 @@ export function wireLiveRefresh(
     // own ~300 ms throttle after any edit, and by then the tokens for the
     // text it renders are already cached. Forcing `markdown.preview.refresh`
     // here would instead rebuild the whole webview on every keystroke.
+    //
+    // Deliberately NOT gated on `ipm.liveRefresh`: this is the preview's
+    // syntax highlighting, the counterpart of the editor pane's, and the
+    // setting is about diagrams re-rendering as you type. Gating it here
+    // meant switching live refresh off left every ipmt fence in the preview
+    // permanently black — there is no other source of tokens.
     const fireTokens = (doc: vscode.TextDocument) => {
-        const cfg = vscode.workspace.getConfiguration('ipm');
-        if (!cfg.get<boolean>('liveRefresh', true)) {
-            return;
-        }
         tokenFlight.run(doc.uri.toString(), () =>
             runEmbedBuffer(client, doc, cache, log, { tokensOnly: true }));
     };
 
     const fire = async (doc: vscode.TextDocument) => {
         const cfg = vscode.workspace.getConfiguration('ipm');
-        if (!cfg.get<boolean>('liveRefresh', true)) {
-            log.appendLine('[live-refresh] disabled by ipm.liveRefresh=false; skipping');
+        if (!liveDiagrams()) {
+            log.appendLine('[live-refresh] diagrams disabled by ipm.liveRefresh=false; colors still refresh');
             return;
         }
         const delay = Math.max(0, cfg.get<number>('liveRefreshDebounceMs', 300));
