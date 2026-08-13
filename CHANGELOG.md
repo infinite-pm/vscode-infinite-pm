@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.2 — unreleased
+## 0.4.2 — 2026-08-13
 
 - `ipm-rpc --version` and the "Show Server Info" command report the bundled
   server's release version. 0.4.1 shipped a server that reported a
@@ -32,9 +32,9 @@
 - `ipm.liveRefresh: false` no longer leaves every ipmt fence in the markdown
   preview black. The setting is about diagrams re-rendering from the unsaved
   buffer, but it gated every `ipm.embedBuffer` call — and those tokens are the
-  preview's only source of colour, so switching it off took the fence
+  preview's only source of color, so switching it off took the fence
   highlighting with it, saved files included. It now gates the diagram swap
-  alone; colours refresh either way.
+  alone; colors refresh either way.
 - The preview no longer forces a full webview reload on the typing path; it
   lets VS Code's own preview refresh pick the new tokens up.
 - A slow in-flight render can no longer overwrite a newer diagram: responses
