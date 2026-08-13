@@ -365,12 +365,9 @@
       },
       {
         "command": "infinite.pm.openPreview",
-        "title": "Open Preview",
+        "title": "Open as Preview",
         "category": "infinite.pm",
-        "icon": {
-          "light": "./media/preview-light.svg",
-          "dark": "./media/preview-dark.svg"
-        }
+        "icon": "$(preview)"
       },
       {
         "command": "infinite.pm.openPreviewToSide",
@@ -419,8 +416,12 @@
       "editor/title": [
         {
           "command": "infinite.pm.openPreviewToSide",
-          "alt": "infinite.pm.openPreview",
           "group": "navigation@1",
+          "when": "editorLangId == ipmt && !notebookEditorFocused"
+        },
+        {
+          "command": "infinite.pm.openPreview",
+          "group": "navigation@2",
           "when": "editorLangId == ipmt && !notebookEditorFocused"
         },
         {

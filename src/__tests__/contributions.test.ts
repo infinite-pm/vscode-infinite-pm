@@ -3,11 +3,15 @@
 // other test covers and which fail silently in the UI (a menu entry that
 // points at a misspelled command simply does nothing).
 //
-// The title-bar assertions encode a deliberate decision: the `.ipmt` editor
-// gets ONE preview button, mirroring markdown-language-features, which
-// contributes `markdown.showPreviewToSide` with `"alt": "markdown.showPreview"`.
-// Two separate buttons carrying near-identical preview icons read as a
-// duplicated control; `alt` keeps the in-place preview one Alt-hold away.
+// The title-bar assertions mirror markdown-language-features, which puts TWO
+// preview buttons on a markdown editor and distinguishes them by icon:
+//
+//   navigation@1  markdown.showPreviewToSide   $(open-preview)
+//   navigation@2  markdown.reopenAsPreview     $(preview)
+//
+// Ours pair up the same way. What made the original pair read as one control
+// duplicated was never the count — it was giving both buttons preview-shaped
+// artwork that looks alike at 16px, so the icons are what these tests pin.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -48,32 +52,39 @@ test('every command referenced by a menu, alt or keybinding is contributed', () 
     assert.deepEqual(dangling, [], 'referenced but not in contributes.commands');
 });
 
-test('the .ipmt editor title bar contributes exactly one preview button', () => {
+test('the .ipmt editor title bar pairs the two preview buttons like markdown', () => {
     const ipmtNav = menus['editor/title'].filter(
         (item) => item.group?.startsWith('navigation') && item.when?.includes('editorLangId == ipmt'),
     );
 
     assert.deepEqual(
-        ipmtNav.map((item) => item.command),
-        ['infinite.pm.openPreviewToSide'],
-        'a second navigation entry for .ipmt editors would render as a duplicate ' +
-            'preview icon next to the first — put the extra command on `alt` instead',
-    );
-    assert.equal(
-        ipmtNav[0].alt,
-        'infinite.pm.openPreview',
-        'the in-place preview must stay reachable from the toolbar as the alt action',
+        ipmtNav.map((item) => `${item.group} ${item.command}`),
+        [
+            'navigation@1 infinite.pm.openPreviewToSide',
+            'navigation@2 infinite.pm.openPreview',
+        ],
+        'to-the-side first, then open-as-preview — the order markdown uses',
     );
 });
 
-// `alt` swaps the rendered icon while Alt is held, so the alt command needs
-// one of its own — otherwise the button goes blank mid-hold.
-test('both preview commands carry an icon', () => {
-    for (const id of ['infinite.pm.openPreview', 'infinite.pm.openPreviewToSide']) {
+// The icons are the whole point: two preview buttons are fine, two buttons
+// wearing the same preview glyph are not. These are the exact codicons
+// markdown-language-features gives its own pair.
+test('the two preview buttons wear different icons', () => {
+    const iconOf = (id: string) => {
         const cmd = commands.find((c) => c.command === id);
         assert.ok(cmd, `${id} is not contributed`);
         assert.ok(cmd.icon, `${id} needs an icon: it renders in the editor title bar`);
-    }
+        return cmd.icon;
+    };
+
+    const side = iconOf('infinite.pm.openPreviewToSide');
+    const inPlace = iconOf('infinite.pm.openPreview');
+
+    assert.equal(side, '$(open-preview)', 'markdown.showPreviewToSide uses this');
+    assert.equal(inPlace, '$(preview)', 'markdown.reopenAsPreview uses this');
+    assert.notDeepEqual(side, inPlace,
+        'side-by-side buttons with the same glyph read as one control duplicated');
 });
 
 // Markdown's own bindings, but scoped to ipmt: shift+ctrl+v in place,

@@ -8,12 +8,12 @@
 - A new extension icon: the infinite.pm logo, the mark over the project name.
 - The Marketplace summary leads with the project name, and names diagnostics
   alongside ipmt language support and embed-on-save.
-- One preview button in the `.ipmt` editor title bar instead of two: "Open
-  Preview" and "Open Preview to the Side" sat side by side with near-identical
-  icons and read as a duplicate. The bar now follows the built-in Markdown
-  preview exactly — a single "Open Preview to the Side" button whose `alt`
-  action (hold Alt / Option) is the in-place "Open Preview", which also keeps
-  its own icon.
+- The `.ipmt` editor title bar carries the same two preview buttons a Markdown
+  editor does, wearing the same icons: "Open Preview to the Side"
+  (`$(open-preview)`) and "Open as Preview" (`$(preview)`), the latter
+  replacing the tab you are in. Both buttons were there before, but the second
+  one wore preview-shaped artwork that looks like the first at 16px, so the
+  pair read as one control duplicated.
 - ipmt fences in the markdown preview stay colored while you type. Two
   things went wrong before: live-refresh used a resetting debounce, so typing
   without a 300 ms pause never refreshed anything, and tokens are looked up by

@@ -126,9 +126,10 @@ export async function openIpmtPreview(
             localResourceRoots: [vscode.Uri.joinPath(ctx.extensionUri, 'media')],
         },
     );
-    // Tab icon — the same `preview-{light,dark}.svg` the editor
-    // title-bar uses for the in-place Open Preview action. Mirrors
-    // markdown-language-features' webview.iconPath wiring.
+    // Tab icon. Mirrors markdown-language-features' webview.iconPath
+    // wiring, down to using the same artwork it ships for its own preview
+    // tab — `preview-{light,dark}.svg`. The title-bar buttons use codicons
+    // instead ($(open-preview) / $(preview)), as markdown's do.
     panel.iconPath = {
         light: vscode.Uri.joinPath(ctx.extensionUri, 'media', 'preview-light.svg'),
         dark: vscode.Uri.joinPath(ctx.extensionUri, 'media', 'preview-dark.svg'),
