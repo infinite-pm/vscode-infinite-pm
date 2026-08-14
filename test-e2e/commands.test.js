@@ -104,7 +104,21 @@ suite('embed on demand', () => {
             },
             'a generated SVG under _ipm/page/',
         );
-        assert.match(fs.readFileSync(svg, 'utf8'), /<svg/, 'the generated file must be an SVG');
+        // Not just "is it an SVG". Every SVG check across these repos used to
+        // stop at that, and a layout collapse — every node at (0,0), no edges —
+        // passes it while producing a picture nobody can read.
+        const rendered = fs.readFileSync(svg, 'utf8');
+        assert.match(rendered, /<svg/, 'the generated file must be an SVG');
+
+        const labels = [...rendered.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
+        for (const node of ['alpha', 'beta']) {
+            assert.ok(labels.includes(node),
+                `the fence names ${node} and the diagram does not: labels were ${labels.join(', ')}`);
+        }
+        const edges = [...rendered.matchAll(/data-edge-base=/g)].length;
+        assert.ok(edges >= 1,
+            'the fence has an arrow; a diagram with no edge geometry is a layout failure ' +
+            'that still renders as a valid SVG');
 
         await waitFor(
             () => doc.getText().includes('<!-- ipm-svg') || undefined,
