@@ -66,3 +66,25 @@ test('no recording, screenshot or doc directory rides along', () => {
         'only media/icon.png should ship as an image — the README embeds its recordings ' +
         'by relative path and vsce rewrites those to absolute URLs at package time');
 });
+
+test('every media file the extension loads at runtime is packaged', () => {
+    // The .vscodeignore re-includes media file by file, so adding an asset and
+    // wiring it up are two separate acts — and the second one is invisible
+    // until an installed build asks for a file that is not there. The webview
+    // that loads preview-view.js was written and shipped-without in the same
+    // afternoon; this is the assertion that would have said so.
+    const packaged = new Set(packagedFiles());
+    const sources = fs.readdirSync(path.join(ROOT, 'src', 'extension'))
+        .filter((f) => f.endsWith('.ts'))
+        .map((f) => fs.readFileSync(path.join(ROOT, 'src', 'extension', f), 'utf8'))
+        .join('\n');
+
+    const referenced = new Set(
+        [...sources.matchAll(/'media',\s*'([^']+)'/g)].map((m) => `media/${m[1]}`),
+    );
+    const missing = [...referenced].filter((f) => !packaged.has(f));
+    assert.deepEqual(missing, [],
+        'the extension loads these at runtime and the .vsix does not contain them — ' +
+        'add a `!` line for each in .vscodeignore, then regenerate ' +
+        'scripts/expected-package-files.txt');
+});

@@ -134,7 +134,11 @@ export async function openIpmtPreview(
         light: vscode.Uri.joinPath(ctx.extensionUri, 'media', 'preview-light.svg'),
         dark: vscode.Uri.joinPath(ctx.extensionUri, 'media', 'preview-dark.svg'),
     };
-    panel.webview.html = buildHtml(panel.webview, initial);
+    panel.webview.html = buildHtml(
+        panel.webview,
+        initial,
+        vscode.Uri.joinPath(ctx.extensionUri, 'media', 'preview-view.js'),
+    );
     panels.set(uriStr, panel);
 
     panel.onDidDispose(() => {
@@ -467,8 +471,11 @@ function stripSvgFixedDims(svgHtml: string): string {
         .replace(/(<svg[^>]*?)\s+height="[^"]*"/i, '$1');
 }
 
-function buildHtml(webview: vscode.Webview, initial: InitialRender): string {
+function buildHtml(webview: vscode.Webview, initial: InitialRender, viewScript: vscode.Uri): string {
     const nonce = randomNonce();
+    // The pan/zoom arithmetic lives in media/preview-view.js so it can be
+    // tested in plain Node; the script below keeps the DOM half.
+    const viewScriptUri = webview.asWebviewUri(viewScript);
     const csp = [
         `default-src 'none'`,
         `style-src 'unsafe-inline'`,
@@ -584,7 +591,9 @@ function buildHtml(webview: vscode.Webview, initial: InitialRender): string {
   <div id="root">${initialBody}</div>
   <div id="error-banner">${initialBanner}</div>
   <div id="zoom-overlay" title="Click to reset zoom (Ctrl+0)">100%</div>
+  <script nonce="${nonce}" src="${viewScriptUri}"></script>
   <script nonce="${nonce}">
+    const V = globalThis.ipmPreviewView;
     const root = document.getElementById('root');
     const banner = document.getElementById('error-banner');
     const overlay = document.getElementById('zoom-overlay');
@@ -633,8 +642,7 @@ function buildHtml(webview: vscode.Webview, initial: InitialRender): string {
     let dragStart = null;
     let dragMoved = false;
     let isFirstFit = true;
-    const STEP = 1.25;
-    const MIN_SCALE = 0.1, MAX_SCALE = 30;
+    const STEP = V.STEP;
 
     function host() { return root.querySelector('.svg-host'); }
     function svgEl() { return root.querySelector('svg'); }
@@ -648,16 +656,18 @@ function buildHtml(webview: vscode.Webview, initial: InitialRender): string {
       if (vb.width <= 0 || vb.height <= 0) { baseW = baseH = 0; return false; }
       const r = root.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0) { baseW = baseH = 0; return false; }
-      const fitS = Math.min(r.width / vb.width, r.height / vb.height);
-      baseW = vb.width * fitS;
-      baseH = vb.height * fitS;
+      const fit = V.fitDimensions({ width: vb.width, height: vb.height }, { width: r.width, height: r.height });
+      if (!fit) { baseW = baseH = 0; return false; }
+      baseW = fit.baseW;
+      baseH = fit.baseH;
       return true;
     }
 
     function recenter() {
       const r = root.getBoundingClientRect();
-      tx = (r.width - baseW * scale) / 2;
-      ty = (r.height - baseH * scale) / 2;
+      const c = V.centerOffsets({ width: r.width, height: r.height }, { baseW: baseW, baseH: baseH }, scale);
+      tx = c.tx;
+      ty = c.ty;
     }
 
     function apply() {
@@ -671,20 +681,17 @@ function buildHtml(webview: vscode.Webview, initial: InitialRender): string {
       s.style.height = (baseH * scale) + 'px';
       // Pan with translate only — no scale, no rasterization.
       h.style.transform = 'translate(' + tx + 'px, ' + ty + 'px)';
-      const isZoomed = Math.abs(scale - 1) > 0.005;
-      h.classList.toggle('zoomed', isZoomed);
-      overlay.style.display = isZoomed ? 'block' : 'none';
-      overlay.textContent = Math.round(scale * 100) + '%';
+      const zoomed = V.isZoomed(scale);
+      h.classList.toggle('zoomed', zoomed);
+      overlay.style.display = zoomed ? 'block' : 'none';
+      overlay.textContent = V.zoomLabel(scale);
     }
     function zoomAt(newScale, cx, cy) {
-      newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
-      if (Math.abs(newScale - scale) < 1e-6) return;
-      // Keep (cx, cy) — the local cursor point — fixed across the zoom:
-      // tx' = cx + (tx - cx) * (newScale / scale)  (same for ty).
-      const ratio = newScale / scale;
-      tx = cx + (tx - cx) * ratio;
-      ty = cy + (ty - cy) * ratio;
-      scale = newScale;
+      const next = V.zoomAt({ scale: scale, tx: tx, ty: ty }, newScale, cx, cy);
+      if (next.scale === scale && next.tx === tx && next.ty === ty) return;
+      scale = next.scale;
+      tx = next.tx;
+      ty = next.ty;
       apply();
     }
     function reset() { scale = 1; recenter(); apply(); }

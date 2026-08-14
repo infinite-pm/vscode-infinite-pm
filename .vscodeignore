@@ -20,6 +20,7 @@
 # GitHub URLs at package time, so the Marketplace page shows them without the
 # bytes riding along.
 !media/icon.png
+!media/preview-view.js
 !media/ipm-preview.css
 !media/preview-light.svg
 !media/preview-dark.svg

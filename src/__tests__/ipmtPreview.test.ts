@@ -14,6 +14,10 @@ interface FakeWebview {
     posted: unknown[];
     html: string;
     postMessage: (m: unknown) => Promise<boolean>;
+    // The preview loads media/preview-view.js through this; a stub without it
+    // fails with "asWebviewUri is not a function", which is the stub being
+    // out of date rather than the code being wrong.
+    asWebviewUri: (u: unknown) => string;
 }
 interface FakePanel {
     webview: FakeWebview;
@@ -43,6 +47,7 @@ function makePanel(): FakePanel {
                 posted.push(m);
                 return true;
             },
+            asWebviewUri: (u: unknown) => `vscode-webview://fake/${String(u)}`,
         } as unknown as FakeWebview,
         visible: true,
         active: false,

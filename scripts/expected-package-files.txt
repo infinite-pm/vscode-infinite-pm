@@ -9,6 +9,7 @@ media/icon.png
 media/ipm-preview.css
 media/preview-dark.svg
 media/preview-light.svg
+media/preview-view.js
 package.json
 README.md
 syntaxes/ipmt.markdown.injection.tmLanguage.json
