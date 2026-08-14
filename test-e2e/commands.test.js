@@ -90,7 +90,7 @@ suite('embed on demand', () => {
     });
 
     test('Force Re-embed Current File writes the SVG and links it', async () => {
-        const doc = await openDoc('page.md');
+        await openDoc('page.md');   // the command acts on the active editor
         await vscode.commands.executeCommand('infinite.pm.embedCurrentFile');
 
         // Two halves of the same promise: a file on disk, and a marker in the
@@ -120,11 +120,19 @@ suite('embed on demand', () => {
             'the fence has an arrow; a diagram with no edge geometry is a layout failure ' +
             'that still renders as a valid SVG');
 
-        await waitFor(
-            () => doc.getText().includes('<!-- ipm-svg') || undefined,
-            'the marker to be inserted into the markdown',
+        // Read the FILE, not the open TextDocument. ipm.embed writes to disk and
+        // VS Code reloads the buffer on its own schedule, so asserting through
+        // the document makes this a race — which is exactly how it failed once
+        // after passing for a day.
+        const pageMd = workspaceUri('page.md').fsPath;
+        const marked = await waitFor(
+            () => {
+                const text = fs.readFileSync(pageMd, 'utf8');
+                return text.includes('<!-- ipm-svg') ? text : undefined;
+            },
+            'the marker to be written into page.md',
         );
-        assert.match(doc.getText(), /!\[\]\(_ipm\/page\/\d+\.ipm\.svg\)/,
+        assert.match(marked, /!\[\]\(_ipm\/page\/\d+\.ipm\.svg\)/,
             'the marker is only useful if the image link follows it');
     });
 });
