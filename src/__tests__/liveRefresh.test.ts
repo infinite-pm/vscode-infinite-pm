@@ -243,13 +243,19 @@ async function observe(): Promise<Observed> {
 }
 
 // Every setting the extension re-reads on each event, with a value that is not
-// its default. `serverPath` and `restartOnBinaryChange` are read at activation
-// by index.ts, not here, so they are out of this table's scope.
-const LIVE_SETTINGS: Array<[string, unknown]> = [
-    ['liveRefresh', false],
-    ['liveRefreshDebounceMs', 0],
-    ['embedOnSave', false],
-    ['embedDebounceMs', 800],
+// its default, and what that setting is ALLOWED to affect. `serverPath` and
+// `restartOnBinaryChange` are read at activation by index.ts, not here, so they
+// are out of this table's scope.
+//
+// `owns: 'diagram'` means the setting may change whether or when a full render
+// is requested. ipm.liveRefreshDebounceMs owns it in the second sense: 0 means
+// "re-render on every change (heavier)", so a diagram render arriving on the
+// keystroke path is the setting working, not a leak.
+const LIVE_SETTINGS: Array<{ key: string; value: unknown; owns?: 'diagram' }> = [
+    { key: 'liveRefresh', value: false, owns: 'diagram' },
+    { key: 'liveRefreshDebounceMs', value: 0, owns: 'diagram' },
+    { key: 'embedOnSave', value: false },
+    { key: 'embedDebounceMs', value: 800 },
 ];
 
 test('no setting can switch fence colors off', async () => {
@@ -257,7 +263,7 @@ test('no setting can switch fence colors off', async () => {
     assert.equal(base.tokenRequests, 1, 'baseline: a change fetches colors');
     assert.equal(base.tokensSurviveSave, true, 'baseline: colors survive a save');
 
-    for (const [key, value] of LIVE_SETTINGS) {
+    for (const { key, value } of LIVE_SETTINGS) {
         settings[key] = value;
         try {
             const got = await observe();
@@ -273,11 +279,13 @@ test('no setting can switch fence colors off', async () => {
     }
 });
 
-test('only ipm.liveRefresh changes whether a diagram render is requested', async () => {
-    // The immediate call is colors-only whatever the settings; the diagram
-    // follows on the debounce, which this harness does not run. What matters
-    // here is that no setting sneaks a full render into the immediate path.
-    for (const [key, value] of LIVE_SETTINGS) {
+test('only the diagram settings can put a render on the keystroke path', async () => {
+    // The immediate call is colors-only, and the diagram follows on the
+    // debounce — which this harness does not wait for, except where a setting
+    // makes the debounce instantaneous. Anything else scheduling a full render
+    // synchronously would be a setting reaching outside what it owns.
+    for (const { key, value, owns } of LIVE_SETTINGS) {
+        if (owns === 'diagram') continue;
         settings[key] = value;
         try {
             const got = await observe();
@@ -286,6 +294,20 @@ test('only ipm.liveRefresh changes whether a diagram render is requested', async
         } finally {
             delete settings[key];
         }
+    }
+});
+
+test('ipm.liveRefreshDebounceMs=0 does render on every change, as documented', async () => {
+    // The other half of the same contract: the setting that owns the diagram
+    // cadence must actually change it, or "0 = re-render on every change
+    // (heavier)" is a promise the code does not keep.
+    settings['liveRefreshDebounceMs'] = 0;
+    try {
+        const got = await observe();
+        assert.equal(got.fullRequests, 1,
+            'with no debounce the diagram render must land on the change itself');
+    } finally {
+        delete settings['liveRefreshDebounceMs'];
     }
 });
 

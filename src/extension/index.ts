@@ -58,13 +58,16 @@ let lastMarkdownUri: vscode.Uri | undefined;
 let binaryWatcher: fs.FSWatcher | undefined;
 let restartTimer: NodeJS.Timeout | undefined;
 let restartInFlight = false;
-let serverState: {
+// What "Show Server Info" reports. Exported for the formatter's tests.
+export interface ServerState {
     command?: string;
     untrusted?: boolean;
     version?: string;
     versionError?: string;
     connected: boolean;
-} = { connected: false };
+}
+
+let serverState: ServerState = { connected: false };
 
 const liveCache = new LiveCache();
 setLiveCache(liveCache);
@@ -317,19 +320,28 @@ function stopBinaryWatcher(): void {
     }
 }
 
-async function showServerInfo(log: vscode.OutputChannel): Promise<void> {
+// formatServerInfo turns the tracked server state into the block shown in
+// both the notification detail and the output channel. Pure, and exported so
+// the wording is asserted without an extension host: this text is the first
+// thing a user reads when the server is not working, and "(not resolved)"
+// versus a path is the whole diagnosis.
+export function formatServerInfo(state: ServerState): string {
     const lines: string[] = [];
-    if (serverState.untrusted) {
+    if (state.untrusted) {
         lines.push('Workspace is RESTRICTED — the language server is not started.');
         lines.push('Trust the folder (Workspaces: Manage Workspace Trust) to enable it.');
     }
-    lines.push(`Path:    ${serverState.command ?? '(not resolved)'}`);
-    lines.push(`Version: ${serverState.version ?? '(unknown)'}`);
-    if (serverState.versionError) {
-        lines.push(`Version probe error: ${serverState.versionError}`);
+    lines.push(`Path:    ${state.command ?? '(not resolved)'}`);
+    lines.push(`Version: ${state.version ?? '(unknown)'}`);
+    if (state.versionError) {
+        lines.push(`Version probe error: ${state.versionError}`);
     }
-    lines.push(`LSP:     ${serverState.connected ? 'connected' : 'not connected'}`);
-    const message = lines.join('\n');
+    lines.push(`LSP:     ${state.connected ? 'connected' : 'not connected'}`);
+    return lines.join('\n');
+}
+
+async function showServerInfo(log: vscode.OutputChannel): Promise<void> {
+    const message = formatServerInfo(serverState);
 
     log.appendLine('--- infinite.pm: server info ---');
     log.appendLine(message);
@@ -353,23 +365,27 @@ async function showServerInfo(log: vscode.OutputChannel): Promise<void> {
 // the most-recently-active markdown editor. The fallback is what makes
 // the commands usable while the *preview* (a webview) is focused — there
 // vscode.window.activeTextEditor is undefined.
-function resolveTargetMarkdown(): vscode.Uri | undefined {
-    const editor = vscode.window.activeTextEditor;
+export function resolveTargetMarkdown(
+    editor: { document: { languageId: string; uri: vscode.Uri } } | undefined = vscode.window.activeTextEditor,
+    fallback: vscode.Uri | undefined = lastMarkdownUri,
+): vscode.Uri | undefined {
     if (editor && editor.document.languageId === 'markdown' && editor.document.uri.scheme === 'file') {
         return editor.document.uri;
     }
-    return lastMarkdownUri;
+    return fallback;
 }
 
 // resolveAnchorUri returns a file URI to anchor a repo lookup on: the
 // active editor's file when there is one, else the markdown fallback (so
 // "Re-embed All in Repo" works from a focused markdown preview too).
-function resolveAnchorUri(): vscode.Uri | undefined {
-    const editor = vscode.window.activeTextEditor;
+export function resolveAnchorUri(
+    editor: { document: { uri: vscode.Uri } } | undefined = vscode.window.activeTextEditor,
+    fallback: vscode.Uri | undefined = lastMarkdownUri,
+): vscode.Uri | undefined {
     if (editor && editor.document.uri.scheme === 'file') {
         return editor.document.uri;
     }
-    return lastMarkdownUri;
+    return fallback;
 }
 
 // embedCurrentFile force-re-embeds every ipmt block in the target
@@ -490,7 +506,7 @@ async function confirmAndEmbedFiles(
     );
 }
 
-function showOneShotMissingBinaryNotice(ctx: vscode.ExtensionContext) {
+export function showOneShotMissingBinaryNotice(ctx: vscode.ExtensionContext) {
     const key = 'ipm.didShowMissingBinaryNotice';
     if (ctx.globalState.get<boolean>(key)) {
         return;
