@@ -1,0 +1,109 @@
+{
+  "markdown": "# fixture\n\nProse before the block.\n\n```ipmt\n# a comment\n\"Life, the Universe and Everything\" ::e lue::a\nhumans / AI / machines ::t --::P--> lue\nlue --> Complex process ::c\n```\n",
+  "blocks": [
+    {
+      "source": "# a comment\n\"Life, the Universe and Everything\" ::e lue::a\nhumans / AI / machines ::t --::P--> lue\nlue --> Complex process ::c",
+      "tokens": [
+        {
+          "line": 0,
+          "col": 0,
+          "len": 11,
+          "type": "ipmComment"
+        },
+        {
+          "line": 1,
+          "col": 0,
+          "len": 35,
+          "type": "ipmString"
+        },
+        {
+          "line": 1,
+          "col": 36,
+          "len": 3,
+          "type": "ipmEvent",
+          "mods": 64
+        },
+        {
+          "line": 1,
+          "col": 40,
+          "len": 3,
+          "type": "ipmEvent",
+          "mods": 1
+        },
+        {
+          "line": 1,
+          "col": 43,
+          "len": 3,
+          "type": "ipmTypeMarker"
+        },
+        {
+          "line": 2,
+          "col": 0,
+          "len": 22,
+          "type": "ipmThing"
+        },
+        {
+          "line": 2,
+          "col": 23,
+          "len": 3,
+          "type": "ipmThing",
+          "mods": 64
+        },
+        {
+          "line": 2,
+          "col": 27,
+          "len": 2,
+          "type": "ipmArrow",
+          "mods": 4
+        },
+        {
+          "line": 2,
+          "col": 29,
+          "len": 3,
+          "type": "ipmRelation"
+        },
+        {
+          "line": 2,
+          "col": 32,
+          "len": 3,
+          "type": "ipmArrow",
+          "mods": 4
+        },
+        {
+          "line": 2,
+          "col": 36,
+          "len": 3,
+          "type": "ipmEvent",
+          "mods": 1
+        },
+        {
+          "line": 3,
+          "col": 0,
+          "len": 3,
+          "type": "ipmEvent",
+          "mods": 1
+        },
+        {
+          "line": 3,
+          "col": 4,
+          "len": 3,
+          "type": "ipmArrow",
+          "mods": 8
+        },
+        {
+          "line": 3,
+          "col": 8,
+          "len": 15,
+          "type": "ipmConcept"
+        },
+        {
+          "line": 3,
+          "col": 24,
+          "len": 3,
+          "type": "ipmConcept",
+          "mods": 64
+        }
+      ]
+    }
+  ]
+}

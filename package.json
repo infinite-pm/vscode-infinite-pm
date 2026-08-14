@@ -524,6 +524,7 @@
   "scripts": {
     "vscode:prepublish": "npm run build",
     "gen-palette": "tsx scripts/gen-palette.ts",
+    "gen-fixture": "tsx scripts/gen-embed-fixture.ts",
     "gen-palette:check": "tsx scripts/gen-palette.ts --check",
     "build": "npm run gen-palette:check && webpack --mode production",
     "watch": "webpack --mode development --watch",
