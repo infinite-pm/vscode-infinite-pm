@@ -1,0 +1,15 @@
+AUTHORS.md
+bin/<target>/ipm-rpc
+CHANGELOG.md
+dist/extension/index.js
+dist/extension/index.js.map
+language-configuration.json
+LICENSE
+media/icon.png
+media/ipm-preview.css
+media/preview-dark.svg
+media/preview-light.svg
+package.json
+README.md
+syntaxes/ipmt.markdown.injection.tmLanguage.json
+syntaxes/ipmt.tmLanguage.json
