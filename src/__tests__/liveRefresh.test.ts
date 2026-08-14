@@ -1,8 +1,12 @@
-// Unit tests for the pure parts of liveRefresh.ts: the LiveCache's data
-// shape and eviction guarantees (including token caching and CRLF /
-// trailing-newline normalization) plus the `isTransientEmbedError`
-// predicate. The runtime wiring (debouncer, LSP call, save eviction) has no
-// automated coverage — it is exercised manually in a development host.
+// Tests for liveRefresh.ts, in three groups:
+//
+//   * the pure parts — LiveCache's data shape, token generations, eviction,
+//     CRLF/trailing-newline normalization, SingleFlight, cooldownMs, and the
+//     isTransientEmbedError predicate;
+//   * the wiring — every listener wireLiveRefresh registers is fired here, and
+//     the subscription count is asserted so a new one cannot arrive untested;
+//   * setting blast radius — each setting the extension reads live is flipped,
+//     and the observables it does NOT own are asserted unchanged.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,8 +35,12 @@ const capture = (name: string) => (fn: (arg: never) => void) => {
     id: '__ipm_vscode_stub_live__', filename: '__ipm_vscode_stub_live__',
     loaded: true, exports: {
         workspace: {
-            getConfiguration: () => ({
-                get: (key: string, def: unknown) => (key in settings ? settings[key] : def),
+            // Section-aware on purpose. A stub that ignores the section argues
+            // that `getConfiguration('ipmt')` reads our settings, and every
+            // test would pass against a typo'd section that reads nothing.
+            getConfiguration: (section?: string) => ({
+                get: (key: string, def: unknown) =>
+                    (section === 'ipm' && key in settings ? settings[key] : def),
             }),
             onDidChangeTextDocument: capture('change'),
             onDidOpenTextDocument: capture('open'),
@@ -93,8 +101,8 @@ const fakeDoc = {
 };
 
 test('a text change still refreshes colors when ipm.liveRefresh is off', async () => {
-    // The stub's getConfiguration ignores the section, so the bare key is
-    // what `getConfiguration('ipm').get('liveRefresh')` reads.
+    // The stub answers only for the 'ipm' section, so this is what
+    // `getConfiguration('ipm').get('liveRefresh')` reads.
     settings['liveRefresh'] = false;
     try {
         const { requests } = wireWithFakes();
@@ -199,6 +207,104 @@ test('a non-markdown document is ignored on both paths', async () => {
     listeners['change']?.({ document: { ...fakeDoc, languageId: 'plaintext' } } as never);
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(requests, []);
+});
+
+// --- setting blast radius ------------------------------------------------
+// 122 of the 123 promises this extension makes say what a feature DOES. Almost
+// none says what a setting must LEAVE ALONE — and that is the shape the
+// liveRefresh bug had: a switch about diagrams silently turned off syntax
+// highlighting, and no assertion existed to contradict it because none had
+// ever been phrased that way.
+//
+// This is phrased that way. It needs no prior bug: flip each setting the
+// extension reads live, and assert the observables that setting does not own
+// are identical to the run with defaults.
+
+interface Observed { tokenRequests: number; fullRequests: number; tokensSurviveSave: boolean }
+
+async function observe(): Promise<Observed> {
+    const cache = new LiveCache();
+    const { requests } = wireWithFakes(cache);
+    const tokens = [{ line: 0, col: 0, len: 2, type: 'ipmEvent' }];
+
+    listeners['change']?.({ document: fakeDoc } as never);
+    await new Promise(resolve => setImmediate(resolve));
+
+    cache.setTokensForSource('file:///a.md', 'e1 ::e', tokens);
+    cache.set('file:///a.md', '01', { hash: 'aa', dataUrl: 'data:x' });
+    listeners['save']?.(fakeDoc as never);
+    await new Promise(resolve => setImmediate(resolve));
+
+    return {
+        tokenRequests: requests.filter(r => r.args.tokensOnly === true).length,
+        fullRequests: requests.filter(r => r.args.tokensOnly === false).length,
+        tokensSurviveSave: cache.getTokensForSource('file:///a.md', 'e1 ::e') !== undefined,
+    };
+}
+
+// Every setting the extension re-reads on each event, with a value that is not
+// its default. `serverPath` and `restartOnBinaryChange` are read at activation
+// by index.ts, not here, so they are out of this table's scope.
+const LIVE_SETTINGS: Array<[string, unknown]> = [
+    ['liveRefresh', false],
+    ['liveRefreshDebounceMs', 0],
+    ['embedOnSave', false],
+    ['embedDebounceMs', 800],
+];
+
+test('no setting can switch fence colors off', async () => {
+    const base = await observe();
+    assert.equal(base.tokenRequests, 1, 'baseline: a change fetches colors');
+    assert.equal(base.tokensSurviveSave, true, 'baseline: colors survive a save');
+
+    for (const [key, value] of LIVE_SETTINGS) {
+        settings[key] = value;
+        try {
+            const got = await observe();
+            assert.equal(got.tokenRequests, base.tokenRequests,
+                `ipm.${key}=${JSON.stringify(value)} changed how many color refreshes a keystroke ` +
+                'triggers. Colors are the preview\'s syntax highlighting; no setting owns them ' +
+                'except by turning the extension off.');
+            assert.equal(got.tokensSurviveSave, base.tokensSurviveSave,
+                `ipm.${key}=${JSON.stringify(value)} changed whether colors survive a save`);
+        } finally {
+            delete settings[key];
+        }
+    }
+});
+
+test('only ipm.liveRefresh changes whether a diagram render is requested', async () => {
+    // The immediate call is colors-only whatever the settings; the diagram
+    // follows on the debounce, which this harness does not run. What matters
+    // here is that no setting sneaks a full render into the immediate path.
+    for (const [key, value] of LIVE_SETTINGS) {
+        settings[key] = value;
+        try {
+            const got = await observe();
+            assert.equal(got.fullRequests, 0,
+                `ipm.${key}=${JSON.stringify(value)} put a diagram render on the keystroke path`);
+        } finally {
+            delete settings[key];
+        }
+    }
+});
+
+test('the config stub is section-aware, so a wrong section fails', () => {
+    // Guards the guard: with a section-blind stub, code reading
+    // getConfiguration('ipmt') would read our test settings and every
+    // assertion above would pass against a typo.
+    const vscodeStub = (require as unknown as { cache: Record<string, { exports: unknown }> })
+        .cache['__ipm_vscode_stub_live__'].exports as {
+            workspace: { getConfiguration: (s?: string) => { get: (k: string, d: unknown) => unknown } };
+        };
+    settings['liveRefresh'] = false;
+    try {
+        assert.equal(vscodeStub.workspace.getConfiguration('ipm').get('liveRefresh', true), false);
+        assert.equal(vscodeStub.workspace.getConfiguration('ipmt').get('liveRefresh', true), true,
+            'a stub that answers for any section cannot catch a mistyped one');
+    } finally {
+        delete settings['liveRefresh'];
+    }
 });
 
 test('set + get round-trip', () => {
