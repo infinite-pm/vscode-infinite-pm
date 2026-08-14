@@ -531,6 +531,7 @@
     "package": "tsx scripts/check-bin.ts && vsce package",
     "test": "npm run gen-palette:check && node --import tsx --test src/__tests__/*.test.ts",
     "test:e2e": "vscode-test",
+    "verify-guards": "tsx scripts/verify-guards.ts",
     "ci": "npm run build && npm test && npm run package"
   },
   "devDependencies": {
