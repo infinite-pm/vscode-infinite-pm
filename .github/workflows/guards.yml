@@ -1,0 +1,42 @@
+name: Guards
+
+# Do the assertions still fail when their bug comes back?
+#
+# Every guard in this repo was verified once, by hand, against the regression it
+# exists for — and then never again. That is exactly how .vscodeignore ended up
+# carrying a rule that could not fire: written, believed, never re-tested.
+#
+# `npm run verify-guards` reintroduces seven real regressions into a scratch
+# copy and asserts the expected red. Weekly, because a guard rots on the
+# timescale of refactors, not of commits — and because it is slow by
+# construction (each case runs a suite).
+
+on:
+  schedule:
+    # Monday 05:00 UTC — a week's refactoring behind it, the week ahead to fix.
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: vscode-ipm }
+      # serverLegend.test.ts reads the server's token legend from here, and the
+      # palette drift check needs it too.
+      - uses: actions/checkout@v4
+        with:
+          repository: infinite-pm/ipm-tools
+          ref: main
+          path: ipm-tools
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm', cache-dependency-path: vscode-ipm/package-lock.json }
+      - working-directory: vscode-ipm
+        run: npm ci
+      - working-directory: vscode-ipm
+        run: npm run build
+      - name: Verify every guard still fires
+        working-directory: vscode-ipm
+        run: npm run verify-guards

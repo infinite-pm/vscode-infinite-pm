@@ -461,7 +461,11 @@ async function embedAllInRepo(client: LanguageClient | undefined, log: vscode.Ou
 // confirmAndEmbedFiles prompts (modal) and then force-re-embeds the given
 // files with a cancellable progress notification. Shared by the
 // "re-embed all in workspace" and "re-embed all in repo" commands.
-async function confirmAndEmbedFiles(
+// Exported for tests: the interesting behaviour is the decisions — refuse
+// without confirmation, stop when cancelled, report how far it got — and all
+// three are invisible from outside because they are wrapped in a modal and a
+// progress notification.
+export async function confirmAndEmbedFiles(
     client: LanguageClient,
     log: vscode.OutputChannel,
     files: vscode.Uri[],

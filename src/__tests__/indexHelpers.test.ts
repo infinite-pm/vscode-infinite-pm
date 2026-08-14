@@ -20,6 +20,10 @@ moduleAny._resolveFilename = function (this: unknown, request: string, ...rest: 
 };
 
 const shown: Array<{ message: string; items: string[] }> = [];
+// What the next modal returns, and whether the progress task is cancelled.
+let answer: string | undefined;
+let cancelAfter = Number.POSITIVE_INFINITY;
+const embedded: string[] = [];
 
 const stub = (id: string, exports: unknown) => {
     (require as unknown as { cache: Record<string, unknown> }).cache[id] = {
@@ -32,7 +36,13 @@ stub('__ipm_vscode_stub_idx__', {
         createOutputChannel: () => ({ appendLine() { /* noop */ }, show() { /* noop */ }, dispose() { /* noop */ } }),
         showInformationMessage: (message: string, ...items: unknown[]) => {
             shown.push({ message, items: items.filter((i): i is string => typeof i === 'string') });
-            return Promise.resolve(undefined);
+            return Promise.resolve(answer);
+        },
+        withProgress: (_opts: unknown, task: (p: unknown, t: unknown) => Promise<void>) => {
+            let reported = 0;
+            const progress = { report: () => { reported++; } };
+            const token = { get isCancellationRequested() { return reported >= cancelAfter; } };
+            return task(progress, token);
         },
         onDidChangeActiveTextEditor: () => ({ dispose() { /* noop */ } }),
     },
@@ -46,6 +56,7 @@ stub('__ipm_vscode_stub_idx__', {
         createFileSystemWatcher: () => ({ onDidChange() { /* noop */ }, onDidCreate() { /* noop */ } }),
         textDocuments: [],
         isTrusted: true,
+        asRelativePath: (u: { fsPath?: string }) => (u && u.fsPath ? u.fsPath : String(u)),
     },
     commands: { registerCommand: () => ({ dispose() { /* noop */ } }), executeCommand: () => Promise.resolve() },
     languages: { createDiagnosticCollection: () => ({ dispose() { /* noop */ } }) },
@@ -57,8 +68,17 @@ stub('__ipm_lc_stub_idx__', { LanguageClient: class { }, TransportKind: { stdio:
 
 test.after(() => { moduleAny._resolveFilename = origResolve; });
 
-const { formatServerInfo, resolveTargetMarkdown, resolveAnchorUri, showOneShotMissingBinaryNotice } =
-    require('../extension/index') as typeof import('../extension/index');
+const { formatServerInfo, resolveTargetMarkdown, resolveAnchorUri, showOneShotMissingBinaryNotice,
+    confirmAndEmbedFiles } = require('../extension/index') as typeof import('../extension/index');
+
+// A client that records which files were re-embedded, nothing more.
+const fakeClient = {
+    sendRequest: (_method: string, params: { arguments: Array<{ file: string }> }) => {
+        embedded.push(params.arguments[0].file);
+        return Promise.resolve({ file: params.arguments[0].file, changed: true });
+    },
+} as never;
+const fakeLog = { appendLine() { /* noop */ } } as never;
 
 const uri = (p: string) => ({ fsPath: p, scheme: 'file', toString: () => `file://${p}` }) as never;
 const editor = (path: string, languageId: string, scheme = 'file') =>
@@ -167,4 +187,53 @@ test('an install that has already seen the notice stays quiet', () => {
     shown.length = 0;
     showOneShotMissingBinaryNotice(fakeContext(true));
     assert.deepEqual(shown, []);
+});
+
+// --- bulk re-embed: confirm, then report ---------------------------------
+// Three decisions wrapped in a modal and a progress notification, which is why
+// they had no test: refuse without an explicit yes, stop when cancelled, and
+// say how far it got.
+
+const files = (...names: string[]) => names.map((n) => uri(n));
+
+test('nothing is re-embedded without an explicit confirmation', async () => {
+    shown.length = 0; embedded.length = 0;
+    answer = undefined;   // the user dismissed the modal
+    await confirmAndEmbedFiles(fakeClient, fakeLog, files('/a.md', '/b.md'), 'workspace');
+
+    assert.deepEqual(embedded, [],
+        'this command overwrites every committed SVG in scope — dismissing the modal must mean no');
+    assert.match(shown[0].message, /2 markdown files in workspace/,
+        'the prompt has to say how many files and which scope, or "yes" means nothing');
+    assert.match(shown[0].message, /overwritten/, 'and that they will be overwritten');
+});
+
+test('answering anything but the affirmative is also no', async () => {
+    shown.length = 0; embedded.length = 0;
+    answer = 'Cancel';
+    await confirmAndEmbedFiles(fakeClient, fakeLog, files('/a.md'), 'repo');
+    assert.deepEqual(embedded, []);
+});
+
+test('confirming re-embeds every file in scope', async () => {
+    shown.length = 0; embedded.length = 0;
+    answer = 'Re-embed all';
+    cancelAfter = Number.POSITIVE_INFINITY;
+    await confirmAndEmbedFiles(fakeClient, fakeLog, files('/a.md', '/b.md', '/c.md'), 'workspace');
+    assert.equal(embedded.length, 3);
+});
+
+test('cancelling mid-run stops, rather than finishing the batch quietly', async () => {
+    // The progress notification is cancellable, which is a promise: a user who
+    // cancels a 200-file re-embed expects it to stop, not to keep rewriting.
+    shown.length = 0; embedded.length = 0;
+    answer = 'Re-embed all';
+    cancelAfter = 2;      // the token reports cancelled after two reports
+    try {
+        await confirmAndEmbedFiles(fakeClient, fakeLog, files('/a.md', '/b.md', '/c.md', '/d.md'), 'workspace');
+        assert.ok(embedded.length < 4, `cancellation must stop the run; embedded ${embedded.length}/4`);
+        assert.ok(embedded.length > 0, 'and it should have started before being cancelled');
+    } finally {
+        cancelAfter = Number.POSITIVE_INFINITY;
+    }
 });
