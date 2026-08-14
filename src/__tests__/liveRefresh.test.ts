@@ -62,7 +62,7 @@ const { LiveCache, SingleFlight, cooldownMs, shouldApplyRender, isTransientEmbed
 
 interface RecordedRequest { command: string; args: Record<string, unknown> }
 
-function wireWithFakes(): RecordedRequest[] {
+function wireWithFakes(cache = new LiveCache()): { requests: RecordedRequest[]; cache: LiveCache; subscriptions: unknown[] } {
     const requests: RecordedRequest[] = [];
     const client = {
         sendRequest: (_method: string, params: { command: string; arguments: unknown[] }) => {
@@ -80,10 +80,10 @@ function wireWithFakes(): RecordedRequest[] {
     wireLiveRefresh(
         ctx as never,
         client as never,
-        new LiveCache(),
+        cache,
         log as never,
     );
-    return requests;
+    return { requests, cache, subscriptions: ctx.subscriptions };
 }
 
 const fakeDoc = {
@@ -97,7 +97,7 @@ test('a text change still refreshes colors when ipm.liveRefresh is off', async (
     // what `getConfiguration('ipm').get('liveRefresh')` reads.
     settings['liveRefresh'] = false;
     try {
-        const requests = wireWithFakes();
+        const { requests } = wireWithFakes();
         listeners['change']?.({ document: fakeDoc } as never);
         await new Promise(resolve => setImmediate(resolve));
 
@@ -112,7 +112,7 @@ test('a text change still refreshes colors when ipm.liveRefresh is off', async (
 });
 
 test('a text change refreshes both colors and diagrams by default', async () => {
-    const requests = wireWithFakes();
+    const { requests } = wireWithFakes();
     listeners['change']?.({ document: fakeDoc } as never);
     await new Promise(resolve => setImmediate(resolve));
 
@@ -120,8 +120,82 @@ test('a text change refreshes both colors and diagrams by default', async () => 
         'the immediate call is colors-only; the diagram follows on the debounce');
 });
 
+// --- every handler this wires must be fired by a test -----------------
+// The save handler was registered from the start and never once fired by a
+// test. It evicted the whole live cache, tokens included, and nothing re-fired
+// the server on that path — so saving a .md left every ipmt fence in the
+// preview black until the next keystroke. Twenty lines here would have caught
+// it, in a harness that already captured the listener.
+//
+// The count assertion is the part that generalises: a sixth subscription added
+// without a test fails this, rather than joining `save` in the four years
+// nobody noticed.
+
+test('wireLiveRefresh registers exactly the handlers these tests fire', () => {
+    const { subscriptions } = wireWithFakes();
+    assert.equal(subscriptions.length, 5,
+        'wireLiveRefresh registered a subscription these tests do not exercise — ' +
+        'fire it below, then update this count');
+    assert.deepEqual(Object.keys(listeners).sort(), ['change', 'close', 'open', 'save'],
+        'the workspace listeners captured by the stub changed; a new one needs a test');
+});
+
+test('saving evicts the rendered SVGs and KEEPS the tokens', async () => {
+    const cache = new LiveCache();
+    const { requests } = wireWithFakes(cache);
+    const tokens = [{ line: 0, col: 0, len: 2, type: 'ipmEvent' }];
+    cache.set('file:///a.md', '01', { hash: 'aa', dataUrl: 'data:image/svg+xml;base64,XXX' });
+    cache.setTokensForSource('file:///a.md', 'e1 ::e', tokens);
+
+    listeners['save']?.(fakeDoc as never);
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.equal(cache.get('file:///a.md', '01'), undefined,
+        'the on-disk SVGs are authoritative again after a save');
+    assert.deepEqual(cache.getTokensForSource('file:///a.md', 'e1 ::e'), tokens,
+        'colors must survive a save: the text did not change, and nothing re-fires here');
+    assert.deepEqual(requests, [],
+        'nothing re-fires the server on the save path — which is exactly why the ' +
+        'tokens have to survive it');
+});
+
+test('closing a document drops everything for it', async () => {
+    const cache = new LiveCache();
+    wireWithFakes(cache);
+    cache.set('file:///a.md', '01', { hash: 'aa', dataUrl: 'data:x' });
+    cache.setTokensForSource('file:///a.md', 'e1 ::e', [{ line: 0, col: 0, len: 2, type: 'ipmEvent' }]);
+
+    listeners['close']?.(fakeDoc as never);
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.equal(cache.get('file:///a.md', '01'), undefined);
+    assert.equal(cache.getTokensForSource('file:///a.md', 'e1 ::e'), undefined,
+        'a closed document keeps nothing — its versions restart at 1 on reopen');
+});
+
+test('opening a markdown document fetches its colors eagerly', async () => {
+    const { requests } = wireWithFakes();
+    listeners['open']?.(fakeDoc as never);
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.equal(requests.length, 1, 'a cold open must not wait for the first keystroke');
+    assert.equal(requests[0].command, 'ipm.embedBuffer');
+});
+
+test('non-markdown documents are ignored on the save and close paths too', async () => {
+    const cache = new LiveCache();
+    wireWithFakes(cache);
+    cache.set('file:///a.md', '01', { hash: 'aa', dataUrl: 'data:x' });
+
+    listeners['save']?.({ ...fakeDoc, languageId: 'ipmt' } as never);
+    listeners['close']?.({ ...fakeDoc, languageId: 'ipmt' } as never);
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.ok(cache.get('file:///a.md', '01'), 'a .ipmt save must not evict markdown state');
+});
+
 test('a non-markdown document is ignored on both paths', async () => {
-    const requests = wireWithFakes();
+    const { requests } = wireWithFakes();
     listeners['change']?.({ document: { ...fakeDoc, languageId: 'plaintext' } } as never);
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(requests, []);
