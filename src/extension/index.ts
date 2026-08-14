@@ -37,6 +37,7 @@ import { registerCacheBust, setDebugLog, setLiveCache } from './cachebust';
 import { LiveCache, wireLiveRefresh } from './liveRefresh';
 import { registerFenceHighlight, registerInlineIpmtHighlight, setHighlightDebugLog, setTokenLookup } from './previewHighlight';
 import { getServerVersion } from './serverVersion';
+import { createRestartGate, createSettler, Settler } from './restartGate';
 import {
     copyActivePreviewPath,
     disposeAllIpmtPreviews,
@@ -56,8 +57,9 @@ let clientDisposables: vscode.Disposable[] = [];
 // works while looking at the rendered markdown, not just the source.
 let lastMarkdownUri: vscode.Uri | undefined;
 let binaryWatcher: fs.FSWatcher | undefined;
-let restartTimer: NodeJS.Timeout | undefined;
-let restartInFlight = false;
+// Why these are not two loose `let`s any more: see restartGate.ts.
+let binarySettler: Settler | undefined;
+const restartGate = createRestartGate();
 // What "Show Server Info" reports. Exported for the formatter's tests.
 export interface ServerState {
     command?: string;
@@ -258,11 +260,10 @@ async function stopClient(): Promise<void> {
 }
 
 async function restartClient(ctx: vscode.ExtensionContext, log: vscode.OutputChannel, reason: string): Promise<void> {
-    if (restartInFlight) {
+    if (!restartGate.tryEnter()) {
         log.appendLine(`[lsp] restart (${reason}) skipped — restart already in flight`);
         return;
     }
-    restartInFlight = true;
     try {
         log.appendLine(`[lsp] restarting (${reason})`);
         stopBinaryWatcher();
@@ -270,7 +271,7 @@ async function restartClient(ctx: vscode.ExtensionContext, log: vscode.OutputCha
         await startClient(ctx, log);
         log.appendLine(`[lsp] restart complete (${reason})`);
     } finally {
-        restartInFlight = false;
+        restartGate.leave();
     }
 }
 
@@ -290,15 +291,10 @@ function setupBinaryWatcher(ctx: vscode.ExtensionContext, log: vscode.OutputChan
         // Some platforms drop the watch after the rename; re-set it from
         // inside the callback if that becomes an issue. For now the simple
         // form is enough.
-        binaryWatcher = fs.watch(serverInfo.command, () => {
-            if (restartTimer) {
-                clearTimeout(restartTimer);
-            }
-            restartTimer = setTimeout(() => {
-                restartTimer = undefined;
-                void restartClient(ctx, log, 'binary changed');
-            }, 500);
+        binarySettler = createSettler(() => {
+            void restartClient(ctx, log, 'binary changed');
         });
+        binaryWatcher = fs.watch(serverInfo.command, () => binarySettler?.bump());
         binaryWatcher.on('error', (err) => {
             log.appendLine(`[lsp] binary watcher error: ${err}`);
         });
@@ -310,10 +306,8 @@ function setupBinaryWatcher(ctx: vscode.ExtensionContext, log: vscode.OutputChan
 }
 
 function stopBinaryWatcher(): void {
-    if (restartTimer) {
-        clearTimeout(restartTimer);
-        restartTimer = undefined;
-    }
+    binarySettler?.cancel();
+    binarySettler = undefined;
     if (binaryWatcher) {
         try { binaryWatcher.close(); } catch { /* best-effort */ }
         binaryWatcher = undefined;
