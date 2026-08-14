@@ -21,17 +21,29 @@ const stubCache = (id: string, exports: unknown) => {
         id, filename: id, loaded: true, exports, children: [], paths: [],
     };
 };
+// Settings the stub reports, and the save listener wireEmbedOnSave registers.
+const settings: Record<string, unknown> = {};
+let onSave: ((doc: unknown) => unknown) | undefined;
+
 stubCache('__ipm_vscode_stub_eos__', {
     workspace: {
-        getConfiguration: () => ({ get: (_: string, def: unknown) => def }),
+        // Section-aware: a stub that answers for any section would let code
+        // reading getConfiguration('ipmt') pass every assertion below.
+        getConfiguration: (section?: string) => ({
+            get: (key: string, def: unknown) =>
+                (section === 'ipm' && key in settings ? settings[key] : def),
+        }),
         createFileSystemWatcher: () => ({ onDidChange() { /* noop */ }, onDidCreate() { /* noop */ } }),
-        onDidSaveTextDocument: () => ({ dispose() { /* noop */ } }),
+        onDidSaveTextDocument: (fn: (doc: unknown) => unknown) => {
+            onSave = fn;
+            return { dispose() { /* noop */ } };
+        },
     },
     Uri: { file: (p: string) => ({ fsPath: p, toString: () => p }) },
 });
 stubCache('__ipm_lc_stub_eos__', {});
 
-const { markdownIncludesIpmt } =
+const { markdownIncludesIpmt, wireEmbedOnSave } =
     require('../extension/embedOnSave') as typeof import('../extension/embedOnSave');
 
 test.after(() => {
@@ -65,4 +77,64 @@ test('markdownIncludesIpmt does not match when the include directive is absent',
     // ipm-include directive — not an include dependency.
     const md = 'See flow.ipmt for the source diagram, rendered separately.';
     assert.equal(markdownIncludesIpmt(md, 'flow.ipmt'), false);
+});
+
+// --- the other half of setting blast radius -----------------------------
+// liveRefresh.test.ts asserts that no setting can switch fence colours off.
+// This asserts the mirror: the settings that own the preview must not change
+// what a save writes to disk. Between them, every setting the extension reads
+// live is pinned from both directions.
+
+interface EmbedRun { commands: string[] }
+
+async function saveWithSettings(): Promise<EmbedRun> {
+    const commands: string[] = [];
+    const client = {
+        sendRequest: (_m: string, params: { command: string }) => {
+            commands.push(params.command);
+            return Promise.resolve({ file: '/a.md', changed: false });
+        },
+    };
+    const ctx = { subscriptions: [] as unknown[] };
+    const log = { appendLine() { /* noop */ } };
+    wireEmbedOnSave(ctx as never, client as never, log as never);
+
+    await onSave?.({
+        languageId: 'markdown',
+        uri: { toString: () => 'file:///a.md', fsPath: '/a.md' },
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    return { commands };
+}
+
+test('saving a markdown file runs ipm.embed by default', async () => {
+    const { commands } = await saveWithSettings();
+    assert.deepEqual(commands, ['ipm.embed']);
+});
+
+test('ipm.embedOnSave=false is the only way to stop it', async () => {
+    settings['embedOnSave'] = false;
+    try {
+        const { commands } = await saveWithSettings();
+        assert.deepEqual(commands, [], 'embedOnSave=false must stop the write');
+    } finally {
+        delete settings['embedOnSave'];
+    }
+});
+
+test('the preview settings do not change what a save writes', async () => {
+    // ipm.liveRefresh is about the preview rendering from an unsaved buffer.
+    // If it ever reaches this path, "turn off live preview" would quietly stop
+    // maintaining the committed SVGs — the same class of surprise as the
+    // colours bug, in the opposite direction.
+    for (const [key, value] of [['liveRefresh', false], ['liveRefreshDebounceMs', 0]] as const) {
+        settings[key] = value;
+        try {
+            const { commands } = await saveWithSettings();
+            assert.deepEqual(commands, ['ipm.embed'],
+                `ipm.${key}=${JSON.stringify(value)} changed what a save writes to disk`);
+        } finally {
+            delete settings[key];
+        }
+    }
 });
