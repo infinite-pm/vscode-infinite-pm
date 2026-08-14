@@ -161,7 +161,7 @@ identity exists. Delete it if it is still there.
    ```
 
 5. **Watch the run.** `preflight` fails in the first minute on a
-   version/tag/changelog mismatch. `build` produces five platform `.vsix` files
+   version/tag/changelog mismatch. `build` produces nine platform `.vsix` files
    and smoke-runs the native Windows and macOS server binaries. `release`
    attaches them plus `SHA256SUMS` to a **draft** release with provenance
    attestations.
@@ -174,11 +174,16 @@ is still a draft. After `publish`, the only way forward is a new version.
 
 ## Notes
 
-- **Screenshots and images in `README.md`** must use absolute
-  `https://raw.githubusercontent.com/infinite-pm/vscode-infinite-pm/<tag>/media/…`
-  URLs. `vsce` can derive a base URL from `repository`, but it points at the
-  default branch, so a later rename 404s on the marketplace page of every
-  already-published version — permanently.
+- **Screenshots and images in `README.md`** stay *relative* in the repository —
+  that is what renders on GitHub, and what `cmd-dev/assets-dist` writes. The
+  release pins them instead: `build-vsix.yml` takes a `readme-ref` input, and
+  `release.yml` passes the tag, so `vsce package` runs with `--baseContentUrl`
+  and `--baseImagesUrl` pointing at that tag. Left to itself `vsce` derives a
+  base URL from `repository` that points at the **default branch**, and a later
+  rename then 404s the images on the marketplace page of every already-published
+  version — permanently. A tag cannot move, so a published version keeps working.
+  CI builds pass no ref: their artifacts are never published, so the default is
+  fine there.
 - **`npm run package` locally** warns if `bin/<goos>-<goarch>/` has no
   `ipm-rpc`. That vsix still works (it falls back to `PATH` / `ipm.serverPath`),
   it just does not keep the "nothing extra to install" promise. CI always stages

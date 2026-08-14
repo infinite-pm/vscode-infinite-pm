@@ -20,6 +20,14 @@ on:
         required: false
         type: number
         default: 14
+      readme-ref:
+        description: >
+          Git ref the packaged README should resolve its relative links against
+          (a tag, for a release). Empty means let vsce derive one, which points
+          at the default branch — fine for a CI artifact nobody publishes.
+        required: false
+        type: string
+        default: ''
 
 jobs:
   test:
@@ -96,9 +104,26 @@ jobs:
           out="vscode-ipm/bin/${GOOS}-${GOARCH}/ipm-rpc${ext}"
           mkdir -p "$(dirname "$out")"
           go build -C ipm-tools -trimpath -ldflags='-s -w' -o "$(pwd)/$out" ./cmd/ipm-rpc
+      # The README links to images and files by relative path, because that is
+      # what renders on GitHub and what cmd-dev/assets-dist writes. vsce turns
+      # those into absolute URLs at package time; left to itself it points them
+      # at the default branch, and a later repo rename then 404s the images on
+      # the marketplace page of every already-published version, permanently.
+      # A release therefore pins them to its own tag, which cannot move.
       - name: Package ${{ matrix.vsce }} .vsix
         working-directory: vscode-ipm
-        run: npx vsce package --target ${{ matrix.vsce }}
+        env:
+          README_REF: ${{ inputs.readme-ref }}
+        run: |
+          set -euo pipefail
+          urls=()
+          if [ -n "$README_REF" ]; then
+            repo="https://github.com/${GITHUB_REPOSITORY}"
+            urls+=(--baseContentUrl "$repo/blob/$README_REF/")
+            urls+=(--baseImagesUrl "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/$README_REF/")
+            echo "README links pinned to $README_REF"
+          fi
+          npx vsce package --target ${{ matrix.vsce }} "${urls[@]}"
       - uses: actions/upload-artifact@v4
         with:
           name: vsix-${{ matrix.vsce }}

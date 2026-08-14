@@ -3,7 +3,7 @@ name: Release
 # Tag-driven release. `git tag v0.4.1 && git push origin v0.4.1` →
 #
 #   preflight  version/tag + CHANGELOG guards, resolve ipm-tools to a SHA
-#   build      the shared matrix from build-vsix.yml, five platform vsix files
+#   build      the shared matrix from build-vsix.yml, nine platform vsix files
 #   release    checksums, provenance attestations, a GitHub release (draft)
 #   publish    Visual Studio Marketplace — gated on the `release` environment
 #              (Open VSX is a later phase: the step is present but skips itself
@@ -50,7 +50,7 @@ jobs:
       - run: npm ci
       # Asserts package.json version == tag minus 'v', and that CHANGELOG.md has
       # a dated (not "unreleased") section for it. Fails in the first minute
-      # rather than after five platform builds.
+      # rather than after nine platform builds.
       - name: Version, tag and changelog guards
         run: npx tsx scripts/release-notes.ts "${{ steps.tag.outputs.tag }}" > release-notes.md
       - uses: actions/upload-artifact@v4
@@ -75,6 +75,9 @@ jobs:
     with:
       ipm-tools-ref: ${{ needs.preflight.outputs.ipm-tools-sha }}
       retention-days: 90
+      # Pin the packaged README's relative links to this tag; see the note in
+      # RELEASING.md about why the default branch is the wrong target.
+      readme-ref: ${{ needs.preflight.outputs.tag }}
 
   release:
     needs: [preflight, build]
