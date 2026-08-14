@@ -172,6 +172,44 @@ identity exists. Delete it if it is still there.
 A run that goes wrong before `publish` is safe to delete and redo — the release
 is still a draft. After `publish`, the only way forward is a new version.
 
+## What is checked, and what is not
+
+Most of a release is proved automatically before `publish` runs:
+
+| layer | what it proves | when |
+| --- | --- | --- |
+| `npm test` (147) | renderer, caches, settings blast radius, the manifest, the README tables, the cross-repo token legend | every push + PR |
+| `go test ./...` in ipm-tools | the server itself, over a real LSP session | every push there |
+| `npm run test:e2e` (16) | commands, tab state, clipboard, diagnostics, embed-to-disk — in a real VS Code | merges to main + nightly |
+| `npm run verify-guards` (7) | that the assertions above still fail when the bug returns | on demand |
+| `preflight` | version == tag, changelog dated for it | on the tag |
+| `smoke` | the SHIPPED vsix's bundled server runs on native Windows and macOS | on the tag |
+
+**These are deliberately not automated.** Not because they do not matter — the
+first two are how a user meets this extension — but because automating them
+costs more than it catches. Walk them after a publish:
+
+1. **Install from the Marketplace** on a clean profile and open a `.ipmt` file.
+   The published listing is a different artifact from the vsix CI built: its
+   README is rewritten at package time, and its images are served from
+   raw.githubusercontent at the tag. A 404 there is invisible to every test.
+2. **The Marketplace page itself** — the recordings play, the badges resolve,
+   the size looks sane (0.4.3 is ~2.9MB packed, ~6.8MB unpacked; the bundled
+   server is nearly all of it).
+3. **Remote-SSH / dev container.** `extensionKind: workspace` means the
+   extension runs on the remote and the server is spawned there. Nothing in CI
+   exercises that split.
+4. **The binary-change restart.** `ipm.restartOnBinaryChange` watches the
+   resolved path with `fs.watch`, whose behaviour differs per platform and per
+   filesystem. Rebuild `ipm-rpc` under a running window and watch the log say
+   it restarted.
+5. **Visual crispness of the `.ipmt` preview.** The pane resizes the SVG element
+   per zoom step rather than CSS-scaling it, precisely so vectors stay sharp.
+   The arithmetic is tested; "does it look right at 400%" is not a test.
+6. **The performance numbers in the 0.4.2 notes** (0.5-2ms colour refreshes,
+   ~35ms on a 3200-line document). They were measured, not asserted, and they
+   will drift.
+
 ## Notes
 
 - **Screenshots and images in `README.md`** stay *relative* in the repository —
