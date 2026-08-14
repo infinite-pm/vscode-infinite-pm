@@ -1,0 +1,81 @@
+name: E2E
+
+# The extension-host suite: a real VS Code, a real extension host, the real
+# bundled ipm-rpc. Everything provable without those lives in `npm test`, which
+# ci.yml runs on every push and PR in under a second.
+#
+# Deliberately NOT a PR gate yet. A suite that drives a GUI can fail for reasons
+# that have nothing to do with the change under review — a VS Code release, a
+# slow runner, a download hiccup — and a gate that cries wolf is how a team
+# learns to ignore red. It runs on merges to main and nightly; promote it to a
+# required check once it has been green for twenty consecutive nights, and cut
+# whatever was not (see ipm-drawio/wip/e2e-coverage/plan.md).
+#
+# Ubuntu only, on the same reasoning: a three-OS matrix costs three times as
+# much to buy evidence of an OS-specific bug we have never seen.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # 04:20 UTC — after the nightly VS Code stable channel has settled, and far
+    # from the working day so a red morning is about the night's changes.
+    - cron: '20 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: vscode-ipm }
+      # The palette codegen reads its source of truth from here, and the server
+      # under test is built from it — same arrangement as build-vsix.yml.
+      - uses: actions/checkout@v4
+        with:
+          repository: infinite-pm/ipm-tools
+          ref: main
+          path: ipm-tools
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm', cache-dependency-path: vscode-ipm/package-lock.json }
+      - uses: actions/setup-go@v5
+        with: { go-version-file: ipm-tools/go.mod }
+
+      - working-directory: vscode-ipm
+        run: npm ci
+      - working-directory: vscode-ipm
+        run: npm run build
+
+      # The specs use no ipm.serverPath: they exercise the same resolution
+      # order a user gets, which ends at the bundled binary. So it has to be
+      # bundled, exactly where the packaged extension would put it.
+      # bin/<GOOS>-<GOARCH>, not the vsce target name: serverPath.ts maps
+      # process.arch 'x64' to 'amd64' before looking, so linux-x64/ would be
+      # invisible to it and every server-dependent spec would fail on a
+      # missing binary rather than on anything real.
+      - name: Build the bundled ipm-rpc
+        env: { CGO_ENABLED: '0' }
+        run: |
+          mkdir -p vscode-ipm/bin/linux-amd64
+          go build -C ipm-tools -trimpath -o "$(pwd)/vscode-ipm/bin/linux-amd64/ipm-rpc" ./cmd/ipm-rpc
+
+      # VS Code is an Electron app: no display, no extension host.
+      - name: Run the extension-host suite
+        working-directory: vscode-ipm
+        run: xvfb-run -a npm run test:e2e
+
+      # The failure that matters here is usually in a log rather than in the
+      # assertion, so keep them when it goes red.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-logs
+          path: |
+            vscode-ipm/.vscode-test/user-data/logs/**
+          if-no-files-found: ignore
+          retention-days: 7
