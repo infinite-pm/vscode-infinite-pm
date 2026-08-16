@@ -41,8 +41,23 @@ function packagedFiles(): string[] {
     )].sort((a, b) => a.localeCompare(b));
 }
 
+// …and a machine that has built no server at all packages no bin/ line, which
+// is every fresh clone and was CI's test job until this commit: bin/ is
+// gitignored and only the package job populates it. The expected list describes
+// what a RELEASE ships, so it names the server — but asserting it here made the
+// suite fail for a reason it is not about, on the first push after it was
+// written. CI now builds the server before `npm test` (build-vsix.yml,
+// guards.yml), so the full list including bin/ is still asserted where it
+// matters; this only keeps a bin-less clone honest instead of red.
+function anythingUnderBin(): boolean {
+    const dir = path.join(ROOT, 'bin');
+    return fs.existsSync(dir)
+        && fs.readdirSync(dir, { recursive: true, withFileTypes: true }).some((e) => e.isFile());
+}
+
 test('the .vsix contains exactly the files we expect', () => {
-    const expected = fs.readFileSync(EXPECTED, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+    const declared = fs.readFileSync(EXPECTED, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+    const expected = anythingUnderBin() ? declared : declared.filter((f) => !f.startsWith('bin/'));
     const actual = packagedFiles();
 
     const added = actual.filter((f) => !expected.includes(f));

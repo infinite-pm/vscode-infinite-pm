@@ -48,6 +48,15 @@ jobs:
         run: npm ci
       - working-directory: vscode-ipm
         run: npm run build   # includes gen-palette:check against ../ipm-tools/pkg/ipmtokens/palette.json
+      # packageManifest.test.ts asserts the whole .vsix manifest, and a release
+      # ships the bundled server — so the runner needs one, or that assertion
+      # tests a package no user will ever receive. bin/<GOOS>-<GOARCH>, not the
+      # vsce target name: serverPath.ts maps process.arch x64 -> amd64.
+      - name: Build ipm-rpc for the manifest assertions
+        env: { CGO_ENABLED: "0" }
+        run: |
+          mkdir -p vscode-ipm/bin/linux-amd64
+          go build -C ipm-tools -trimpath -o "$(pwd)/vscode-ipm/bin/linux-amd64/ipm-rpc" ./cmd/ipm-rpc
       - working-directory: vscode-ipm
         run: npm test
 
