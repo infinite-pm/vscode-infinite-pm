@@ -1,12 +1,17 @@
 // Extension-host tests: the layer that needs a real VS Code.
 //
-// Everything provable without one lives in `npm test` (147 assertions, under a
+// Everything provable without one lives in `npm test` (158 assertions, under a
 // second). What is left here is what genuinely needs an extension host —
 // command registration, tab state, the clipboard, diagnostics arriving from a
 // real server over a real LSP connection, files appearing on disk.
 //
 //   npm run test:e2e            # downloads a VS Code on first run
 //   npm run test:e2e -- --label commands
+//
+// That opens real VS Code windows on your display. To run it the way CI does —
+// headless, no windows, no X server needed on the host — `make e2e` in the
+// sibling vscode-infinite-pm-dev checkout runs this same suite inside the
+// recording image, which already carries Xvfb.
 //
 // Specs are plain JavaScript on purpose. They run inside VS Code's own Node,
 // mocha-style, and adding a TypeScript build step for a dozen files would buy

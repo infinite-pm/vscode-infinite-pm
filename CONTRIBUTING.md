@@ -19,6 +19,9 @@ full command list. The short version:
   run (into `.vscode-test/`, gitignored) and needs a display — on a headless
   box, `xvfb-run -a npm run test:e2e`. Specs live in `test-e2e/` as plain
   JavaScript and run mocha-style inside the host.
+  - Real VS Code windows open and take focus for the duration. To run it
+    without that, `make e2e` in a `../vscode-infinite-pm-dev` checkout runs the
+    same suite inside the recording container, which carries its own Xvfb.
   - It needs the server bundled where the packaged extension keeps it:
     `make vscode-pkg` from `../ipm-drawio`, or
     `go build -C ../ipm-tools -o bin/linux-amd64/ipm-rpc ./cmd/ipm-rpc`.
