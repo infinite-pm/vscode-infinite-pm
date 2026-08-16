@@ -222,18 +222,34 @@ test('a non-markdown document is ignored on both paths', async () => {
 
 interface Observed { tokenRequests: number; fullRequests: number; tokensSurviveSave: boolean }
 
+// Let BOTH event-loop phases run, not just the check phase.
+//
+// ipm.liveRefreshDebounceMs=0 schedules its render with setTimeout(…, 0), and
+// the order of a 0 ms timer against setImmediate from the main context is
+// genuinely nondeterministic in Node — it depends on how long process startup
+// took. Awaiting a 0 ms timer first puts us behind any timer already scheduled
+// for the same tick (equal expiry fires in insertion order), and the
+// setImmediate then drains the promise callbacks that timer queued.
+//
+// Waiting only on setImmediate failed about one run in five, which is the worst
+// rate there is: green on a dev machine, red on the run that matters.
+async function settle(): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise(resolve => setImmediate(resolve));
+}
+
 async function observe(): Promise<Observed> {
     const cache = new LiveCache();
     const { requests } = wireWithFakes(cache);
     const tokens = [{ line: 0, col: 0, len: 2, type: 'ipmEvent' }];
 
     listeners['change']?.({ document: fakeDoc } as never);
-    await new Promise(resolve => setImmediate(resolve));
+    await settle();
 
     cache.setTokensForSource('file:///a.md', 'e1 ::e', tokens);
     cache.set('file:///a.md', '01', { hash: 'aa', dataUrl: 'data:x' });
     listeners['save']?.(fakeDoc as never);
-    await new Promise(resolve => setImmediate(resolve));
+    await settle();
 
     return {
         tokenRequests: requests.filter(r => r.args.tokensOnly === true).length,
