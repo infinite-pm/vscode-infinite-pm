@@ -93,10 +93,20 @@ const CASES: Case[] = [
     },
 ];
 
+// The copy goes in <tmp>/vscode-ipm, not straight into <tmp>, because some
+// suites read the SIBLING repo: serverLegend.test.ts opens
+// ../ipm-tools/pkg/ipmtokens/tokens.go. A copy with no sibling made that spec
+// die of ENOENT, which runsRed could not tell apart from the guard firing —
+// the case reported ok from the day it was written and never checked anything.
+const TOOLS = path.resolve(ROOT, '..', 'ipm-tools');
+
 function scratchCopy(): string {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipm-guards-'));
-    // Everything the suites read, minus the heavy directories. node_modules is
-    // symlinked rather than copied: 400MB per case is not a price worth paying.
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'ipm-guards-'));
+    const dir = path.join(parent, 'vscode-ipm');
+    fs.mkdirSync(dir);
+    // Everything the suites read, minus the heavy directories. node_modules and
+    // ipm-tools are symlinked rather than copied: 400MB per case is not a price
+    // worth paying, and both are only ever read.
     for (const entry of ['src', 'scripts', 'media', 'syntaxes', 'package.json', '.vscodeignore',
         'README.md', 'CHANGELOG.md', 'AUTHORS.md', 'LICENSE', 'language-configuration.json',
         'tsconfig.json', 'dist', 'bin']) {
@@ -105,7 +115,21 @@ function scratchCopy(): string {
         fs.cpSync(from, path.join(dir, entry), { recursive: true });
     }
     fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'));
+    fs.symlinkSync(TOOLS, path.join(parent, 'ipm-tools'));
     return dir;
+}
+
+// Unlink the symlinks by hand before removing the tree. fs.rmSync does not
+// follow them, but the targets here are the developer's real node_modules and
+// real ipm-tools clone, and that is not a thing to be nearly-sure about.
+function discard(dir: string): void {
+    const parent = path.dirname(dir);
+    for (const link of [path.join(dir, 'node_modules'), path.join(parent, 'ipm-tools')]) {
+        try {
+            fs.unlinkSync(link);
+        } catch { /* already gone */ }
+    }
+    fs.rmSync(parent, { recursive: true, force: true });
 }
 
 function runsRed(dir: string, spec: string): boolean {
@@ -123,6 +147,19 @@ let failed = 0;
 for (const c of CASES) {
     const dir = scratchCopy();
     try {
+        // Red after the breakage proves nothing unless the spec was green
+        // before it. serverLegend.test.ts was red in every scratch copy ever
+        // made — see the sibling symlink above — and this loop called it a
+        // working guard for as long as it existed. A verifier reporting a false
+        // ok is worse than no verifier, because it is the thing you check when
+        // you have stopped trusting the tests.
+        if (runsRed(dir, c.spec)) {
+            failed++;
+            console.log(`BASE  ${c.name}`);
+            console.log(`      ${c.spec} is already red BEFORE the breakage — this case proves nothing`);
+            console.log('      run it directly to see why: something in the environment, or a flaky spec');
+            continue;
+        }
         c.break(dir);
         const red = runsRed(dir, c.spec);
         console.log(`${red ? 'ok  ' : 'DEAD'}  ${c.name}`);
@@ -132,7 +169,7 @@ for (const c of CASES) {
             console.log(`      ${c.spec} still passes with the breakage applied`);
         }
     } finally {
-        fs.rmSync(dir, { recursive: true, force: true });
+        discard(dir);
     }
 }
 
@@ -140,4 +177,4 @@ if (failed > 0) {
     console.error(`\n${failed} guard(s) no longer catch what they were written for.`);
     process.exit(1);
 }
-console.log(`\nall ${CASES.length} guards fire.`);
+console.log(`\nall ${CASES.length} guards fire, each from a green baseline.`);
