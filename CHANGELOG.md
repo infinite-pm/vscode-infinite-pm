@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The include-refresh watcher scheduled one repo-wide markdown scan per changed
+  `.ipmt`. A tool writing thousands of `.ipmt` files into the workspace (a
+  generated corpus under `temp/`) queued thousands of scans, the extension host
+  stalled for minutes, and VS Code's renderer crashed behind it. Changes under
+  generated trees (`temp/`, `tmp/`, `out/`, `dist/`, `node_modules/`, … plus
+  the new `ipm.embedIgnore`) are now ignored, and a burst of changes anywhere
+  else is coalesced into one scan once it has been quiet for ~500ms.
+
 ## 0.4.3 — 2026-08-13
 
 - A third smaller download. 0.4.2 packaged the two demo recordings the README

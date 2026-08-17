@@ -24,6 +24,8 @@ const stubCache = (id: string, exports: unknown) => {
 // Settings the stub reports, and the save listener wireEmbedOnSave registers.
 const settings: Record<string, unknown> = {};
 let onSave: ((doc: unknown) => unknown) | undefined;
+let onWatchChange: ((uri: { fsPath: string }) => void) | undefined;
+let findFilesCalls = 0;
 
 stubCache('__ipm_vscode_stub_eos__', {
     workspace: {
@@ -33,18 +35,35 @@ stubCache('__ipm_vscode_stub_eos__', {
             get: (key: string, def: unknown) =>
                 (section === 'ipm' && key in settings ? settings[key] : def),
         }),
-        createFileSystemWatcher: () => ({ onDidChange() { /* noop */ }, onDidCreate() { /* noop */ } }),
+        createFileSystemWatcher: () => ({
+            onDidChange(fn: (uri: { fsPath: string }) => void) { onWatchChange = fn; return { dispose() { /* noop */ } }; },
+            onDidCreate() { return { dispose() { /* noop */ } }; },
+            dispose() { /* noop */ },
+        }),
         onDidSaveTextDocument: (fn: (doc: unknown) => unknown) => {
             onSave = fn;
             return { dispose() { /* noop */ } };
         },
+        // The repo-wide markdown scan. Counting calls is the whole point of
+        // the burst tests: a burst must cost ONE of these, not one per file.
+        findFiles: () => { findFilesCalls++; return Promise.resolve([]); },
+        getWorkspaceFolder: () => ({ uri: { toString: () => 'file:///repo', fsPath: '/repo' } }),
+        textDocuments: [],
+        fs: { readFile: () => Promise.resolve(new Uint8Array()) },
     },
-    Uri: { file: (p: string) => ({ fsPath: p, toString: () => p }) },
+    Uri: { file: (p: string) => ({ fsPath: p, toString: () => 'file://' + p }) },
+    RelativePattern: class { constructor(public base: unknown, public pattern: string) { /* noop */ } },
+    commands: { executeCommand: () => Promise.resolve() },
 });
 stubCache('__ipm_lc_stub_eos__', {});
 
-const { markdownIncludesIpmt, wireEmbedOnSave } =
+const { markdownIncludesIpmt, wireEmbedOnSave, wireIpmtIncludeRefresh, ipmtChangeIsIgnored } =
     require('../extension/embedOnSave') as typeof import('../extension/embedOnSave');
+
+const fakeCtx = { subscriptions: [] as unknown[] } as never;
+const fakeLog = { appendLine() { /* noop */ } } as never;
+const fakeClient = { sendRequest: () => Promise.resolve(null) } as never;
+const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 test.after(() => {
     moduleAny._resolveFilename = origResolve;
@@ -137,4 +156,45 @@ test('the preview settings do not change what a save writes', async () => {
             delete settings[key];
         }
     }
+});
+
+// --- bursts of .ipmt changes ---------------------------------------------
+// The include-refresh watcher used to schedule one repo-wide markdown scan
+// PER changed .ipmt, 150ms apart. A generator writing 2,800 files into the
+// workspace therefore queued 2,800 scans (findFiles over every *.md, then a
+// read of each), the extension host stalled for minutes, and the renderer
+// died behind it — twice in one day. These pin the two things that stop it:
+// generated trees are ignored, and a burst costs one scan.
+
+test('a change under a temp/ or generated tree is ignored', () => {
+    assert.equal(ipmtChangeIsIgnored('/repo/temp/layout-audit/x.ipmt'), true);
+    assert.equal(ipmtChangeIsIgnored('/repo/a/b/tmp/x.ipmt'), true, 'matched as a segment anywhere, not only at the root');
+    assert.equal(ipmtChangeIsIgnored('/repo/node_modules/pkg/x.ipmt'), true);
+    assert.equal(ipmtChangeIsIgnored('/repo/docs/x.ipmt'), false);
+    assert.equal(ipmtChangeIsIgnored('/repo/docs/out.ipmt'), false, 'the basename is not a directory');
+    assert.equal(ipmtChangeIsIgnored('/repo/gen/x.ipmt', ['gen']), true, 'ipm.embedIgnore extends the list');
+});
+
+test('a burst of changed .ipmt files costs ONE repo scan, not one per file', async () => {
+    findFilesCalls = 0;
+    wireIpmtIncludeRefresh(fakeCtx, fakeClient, fakeLog);
+    assert.ok(onWatchChange, 'the watcher must be wired');
+    for (let i = 0; i < 300; i++) {
+        onWatchChange!({ fsPath: `/repo/docs/gen-${i}.ipmt` });
+    }
+    await tick(50);
+    assert.equal(findFilesCalls, 0, 'nothing runs while the burst is still arriving');
+    await tick(700);
+    assert.equal(findFilesCalls, 1,
+        `300 changed files must trigger exactly one scan; got ${findFilesCalls}. Per-file scans are what stalled the extension host.`);
+});
+
+test('changes under temp/ trigger no scan at all', async () => {
+    findFilesCalls = 0;
+    wireIpmtIncludeRefresh(fakeCtx, fakeClient, fakeLog);
+    for (let i = 0; i < 2800; i++) {
+        onWatchChange!({ fsPath: `/repo/temp/layout-audit/f-${i}.ipmt` });
+    }
+    await tick(700);
+    assert.equal(findFilesCalls, 0, 'a corpus written into temp/ is not an edit to react to');
 });

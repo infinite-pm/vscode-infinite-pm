@@ -60,6 +60,31 @@ export async function runIpmEmbed(client: LanguageClient, uri: vscode.Uri, log: 
 // see the same disk write) and rapid successive agent writes.
 const IPMT_REFRESH_DEBOUNCE_MS = 150;
 
+// A BURST of .ipmt changes — a generator writing a corpus, a checkout, a
+// re-embed sweep — is not N edits; it is one event, and it must cost one
+// scan. The debounce above is per file, which is right for two agents each
+// editing their own file and catastrophic for a tool writing 2,800 files:
+// each one scheduled its own repo-wide markdown scan (findFiles over every
+// *.md, then a read of each), 150ms apart, and the extension host stalled
+// for minutes — twice in one day the renderer died behind it. So changes
+// coalesce into one pending set, flushed once the burst has been quiet for
+// this long, and the scan runs ONCE for the whole set.
+const IPMT_BURST_QUIET_MS = 500;
+
+// Generated trees are never edited by hand and never included by hand-written
+// markdown that matters here; a change under one of these is noise to this
+// feature and, in bulk, the thing that took the extension host down. Matched
+// as path segments so `temp/` anywhere in the tree counts, not only at the
+// root. `ipm.embedIgnore` extends the list.
+const IPMT_IGNORED_SEGMENTS = ['temp', 'tmp', 'node_modules', '.git', 'out', 'dist', 'target', 'build'];
+
+export function ipmtChangeIsIgnored(fsPath: string, extra: string[] = []): boolean {
+    const segs = fsPath.split(/[\\/]/);
+    const ignored = new Set([...IPMT_IGNORED_SEGMENTS, ...extra]);
+    // Not the basename: a file called out.ipmt is fine, a directory called out is not.
+    return segs.slice(0, -1).some((seg) => ignored.has(seg));
+}
+
 // wireIpmtIncludeRefresh keeps markdown previews/SVGs in sync when an
 // *included* `.ipmt` file changes.
 //
@@ -82,19 +107,32 @@ export function wireIpmtIncludeRefresh(
     log: vscode.OutputChannel,
     disposables?: vscode.Disposable[],
 ): void {
-    const debouncers = new Map<string, NodeJS.Timeout>();
+    // One pending set for the whole burst, not a timer per file.
+    const pending = new Set<string>();
+    let flush: NodeJS.Timeout | undefined;
+    let dropped = 0;
 
     const schedule = (ipmtFsPath: string) => {
         const cfg = vscode.workspace.getConfiguration('ipm');
         if (!cfg.get<boolean>('embedOnSave', true)) {
             return;
         }
-        const prev = debouncers.get(ipmtFsPath);
-        if (prev) clearTimeout(prev);
-        debouncers.set(ipmtFsPath, setTimeout(() => {
-            debouncers.delete(ipmtFsPath);
-            void reembedMarkdownIncluding(client, ipmtFsPath, log);
-        }, IPMT_REFRESH_DEBOUNCE_MS));
+        if (ipmtChangeIsIgnored(ipmtFsPath, cfg.get<string[]>('embedIgnore', []))) {
+            dropped++;
+            return;
+        }
+        pending.add(ipmtFsPath);
+        if (flush) clearTimeout(flush);
+        flush = setTimeout(() => {
+            flush = undefined;
+            const batch = [...pending];
+            pending.clear();
+            if (dropped > 0) {
+                log.appendLine(`[embed] ignored ${dropped} .ipmt change(s) under generated/temp trees`);
+                dropped = 0;
+            }
+            void reembedMarkdownIncluding(client, batch, log);
+        }, Math.max(IPMT_REFRESH_DEBOUNCE_MS, IPMT_BURST_QUIET_MS));
     };
 
     // Editor save of a .ipmt — covers agent edits applied + saved through
@@ -142,25 +180,41 @@ export function markdownIncludesIpmt(markdownText: string, ipmtBasename: string)
 // We skip markdown whose buffer has unsaved edits: ipm.embed reads from
 // disk and would fight the user's pending changes; those refresh on their
 // own next save.
+//
+// Takes the whole BURST of changed .ipmt paths and scans once: one findFiles
+// per repo the burst touched, one read per markdown, matched against every
+// basename in the burst. Per-file scanning is what stalled the extension host
+// when a generator wrote thousands of .ipmt at once.
 async function reembedMarkdownIncluding(
     client: LanguageClient,
-    ipmtFsPath: string,
+    ipmtFsPaths: string[],
     log: vscode.OutputChannel,
 ): Promise<void> {
-    const ipmtUri = vscode.Uri.file(ipmtFsPath);
-    const ipmtBasename = path.basename(ipmtFsPath);
-    const base = findGitRepoRoot(ipmtUri) ?? vscode.workspace.getWorkspaceFolder(ipmtUri)?.uri;
+    if (ipmtFsPaths.length === 0) return;
+    const basenames = ipmtFsPaths.map((p) => path.basename(p));
+    const label = basenames.length === 1 ? basenames[0] : `${basenames.length} .ipmt files`;
 
-    let candidates: vscode.Uri[];
-    if (base) {
-        candidates = await vscode.workspace.findFiles(
-            new vscode.RelativePattern(base, '**/*.md'),
-            '**/node_modules/**',
-        );
-    } else {
-        candidates = vscode.workspace.textDocuments
-            .filter((d) => d.languageId === 'markdown' && d.uri.scheme === 'file')
-            .map((d) => d.uri);
+    // Group by repo so a burst spanning two checkouts scans each once.
+    const bases = new Map<string, vscode.Uri | undefined>();
+    for (const p of ipmtFsPaths) {
+        const u = vscode.Uri.file(p);
+        const base = findGitRepoRoot(u) ?? vscode.workspace.getWorkspaceFolder(u)?.uri;
+        bases.set(base ? base.toString() : '', base);
+    }
+    const seen = new Set<string>();
+    let candidates: vscode.Uri[] = [];
+    for (const base of bases.values()) {
+        const found = base
+            ? await vscode.workspace.findFiles(new vscode.RelativePattern(base, '**/*.md'), '**/node_modules/**')
+            : vscode.workspace.textDocuments
+                .filter((d) => d.languageId === 'markdown' && d.uri.scheme === 'file')
+                .map((d) => d.uri);
+        for (const u of found) {
+            if (!seen.has(u.toString())) {
+                seen.add(u.toString());
+                candidates.push(u);
+            }
+        }
     }
 
     const dirty = new Set(
@@ -178,16 +232,16 @@ async function reembedMarkdownIncluding(
         } catch {
             continue;
         }
-        if (!markdownIncludesIpmt(text, ipmtBasename)) continue;
+        if (!basenames.some((b) => markdownIncludesIpmt(text, b))) continue;
         await runIpmEmbed(client, md, log);
         refreshed++;
     }
 
     if (refreshed === 0) {
-        log.appendLine(`[embed] ${ipmtBasename} changed — no dependent markdown to refresh`);
+        log.appendLine(`[embed] ${label} changed — no dependent markdown to refresh`);
         return;
     }
-    log.appendLine(`[embed] ${ipmtBasename} changed — re-embedded ${refreshed} dependent markdown file(s)`);
+    log.appendLine(`[embed] ${label} changed — re-embedded ${refreshed} dependent markdown file(s)`);
     // Nudge the preview so regenerated SVGs / data URLs land in the DOM.
     try {
         await vscode.commands.executeCommand('markdown.preview.refresh');
