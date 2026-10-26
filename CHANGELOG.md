@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-10-26
 
 ### Changed
 
+- The bundled language server now uses the event model by default (the
+  event-default cutover).
 - The extension now needs VS Code 1.140 or newer (it was 1.82). Build
   dependencies were updated to their newest compatible versions.
 

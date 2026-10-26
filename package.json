@@ -3,7 +3,7 @@
   "displayName": "infinite.pm",
   "description": "infinite.pm (Infinite Process Modeling) — ipmt language support, diagnostics, and embed-on-save that keeps SVG diagrams in sync",
   "icon": "media/icon.png",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "publisher": "infinite-pm",
   "license": "Apache-2.0",
   "repository": {
