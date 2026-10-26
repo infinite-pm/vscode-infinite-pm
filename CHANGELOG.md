@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- The extension now needs VS Code 1.140 or newer (it was 1.82). Build
+  dependencies were updated to their newest compatible versions.
+
 ### Fixed
 
 - The include-refresh watcher scheduled one repo-wide markdown scan per changed
