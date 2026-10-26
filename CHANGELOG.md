@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+### Changed
+
+- Colours: the whole node, title included, is coloured by kind (event orange, thing green, concept blue), in TextMate fallback and semantic mode; accessible light/dark values. A quoted title no longer takes the theme's string colour, an unmarked node is an event, and semantic highlighting is on by default for ipmt and markdown. The quote characters of a title no longer take the bracket-pair colour (red at the edges): `"` is no longer declared as a bracket, but still auto-closes and surrounds. See the README section "Colours".
+
 ## 0.5.0 — 2026-10-26
 
 ### Changed

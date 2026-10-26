@@ -25,7 +25,11 @@ const CSS_PATH = path.join(ROOT, 'media', 'ipm-preview.css');
 const PALETTE_GEN_PATH = path.join(ROOT, 'src', 'palette.gen.ts');
 
 // The palette source of truth in the sibling ipm-tools repo.
-const PALETTE_JSON = path.resolve(ROOT, '..', 'ipm-tools', 'pkg', 'ipmtokens', 'palette.json');
+// IPM_TOOLS_DIR points at another ipm-tools checkout (a worktree, say).
+const IPM_TOOLS_DIR = process.env.IPM_TOOLS_DIR
+    ? path.resolve(process.env.IPM_TOOLS_DIR)
+    : path.resolve(ROOT, '..', 'ipm-tools');
+const PALETTE_JSON = path.join(IPM_TOOLS_DIR, 'pkg', 'ipmtokens', 'palette.json');
 const PALETTE_JSON_REL = '../ipm-tools/pkg/ipmtokens/palette.json';
 
 const CSS_GEN_START = '/* GEN-START palette — do not edit; run `npm run gen-palette` */';
@@ -42,10 +46,41 @@ interface PaletteRule {
     type: string;
     mod?: string;
     class: string;
-    fg: string;
+    fg: string; // dark themes
+    fgLight: string; // light themes
     bold?: boolean;
     italic?: boolean;
 }
+
+// The TextMate scope the grammar (syntaxes/ipmt.tmLanguage.json) gives each
+// palette class, for the fallback colours that work with semantic
+// highlighting off. The alias classes share their title's scope, and the
+// dimmed `-aliased` titles have none: only the language server knows a node
+// has an alias.
+const TEXTMATE_SCOPE: Record<string, string> = {
+    'e-title': 'entity.name.type.event.ipmt',
+    't-title': 'entity.name.type.thing.ipmt',
+    'c-title': 'entity.name.type.concept.ipmt',
+    'e-marker': 'storage.type.node.event.ipmt',
+    't-marker': 'storage.type.node.thing.ipmt',
+    'c-marker': 'storage.type.node.concept.ipmt',
+    'arrow': 'keyword.operator.arrow.ipmt',
+    'L': 'keyword.operator.arrow.leadsTo.ipmt',
+    'P': 'keyword.operator.arrow.partOf.ipmt',
+    'X': 'keyword.operator.arrow.expresses.ipmt',
+    'N': 'keyword.operator.arrow.nearTo.ipmt',
+    'type-marker': 'storage.type.node.ipmt',
+    'relation': 'storage.type.relation.ipmt',
+    'comment': 'comment.line.number-sign.ipmt',
+    'string': 'string.quoted.double.ipmt',
+    'tooltip': 'string.quoted.double.tooltip.ipmt',
+    'unresolved': 'comment.unresolved.ipmt',
+};
+
+// VS Code applies a `[name]` block inside editor.tokenColorCustomizations /
+// editor.semanticTokenColorCustomizations to themes whose name matches; `*`
+// is a wildcard. The base values are the dark ones, `[*Light*]` overrides them.
+const LIGHT_THEMES = '[*Light*]';
 
 function loadRules(): PaletteRule[] {
     if (!fs.existsSync(PALETTE_JSON)) {
@@ -87,10 +122,10 @@ function ruleName(r: PaletteRule): string {
 
 interface SemanticTokenRule { foreground: string; italic?: boolean; bold?: boolean; }
 
-function generatePackageJsonRules(rules: PaletteRule[]): Record<string, SemanticTokenRule> {
+function generatePackageJsonRules(rules: PaletteRule[], light: boolean): Record<string, SemanticTokenRule> {
     const out: Record<string, SemanticTokenRule> = {};
     for (const r of orderedRules(rules)) {
-        const rule: SemanticTokenRule = { foreground: r.fg };
+        const rule: SemanticTokenRule = { foreground: light ? r.fgLight : r.fg };
         if (r.italic) rule.italic = true;
         if (r.bold) rule.bold = true;
         out[ruleName(r)] = rule;
@@ -98,10 +133,32 @@ function generatePackageJsonRules(rules: PaletteRule[]): Record<string, Semantic
     return out;
 }
 
+interface TextMateRule { scope: string; settings: { foreground: string; fontStyle?: string }; }
+
+function generateTextMateRules(rules: PaletteRule[], light: boolean): TextMateRule[] {
+    const out: TextMateRule[] = [];
+    for (const r of orderedRules(rules)) {
+        const scope = TEXTMATE_SCOPE[r.class];
+        if (!scope) continue;
+        const settings: TextMateRule['settings'] = { foreground: light ? r.fgLight : r.fg };
+        const style = [r.bold ? 'bold' : '', r.italic ? 'italic' : ''].filter(Boolean).join(' ');
+        if (style) settings.fontStyle = style;
+        out.push({ scope, settings });
+    }
+    return out;
+}
+
 function rewritePackageJson(rules: PaletteRule[]): string {
     const pkg = JSON.parse(fs.readFileSync(PKG_PATH, 'utf8'));
-    pkg.contributes.configurationDefaults['editor.semanticTokenColorCustomizations'].rules =
-        generatePackageJsonRules(rules);
+    const defaults = pkg.contributes.configurationDefaults;
+    defaults['editor.semanticTokenColorCustomizations'] = {
+        rules: generatePackageJsonRules(rules, false),
+        [LIGHT_THEMES]: { rules: generatePackageJsonRules(rules, true) },
+    };
+    defaults['editor.tokenColorCustomizations'] = {
+        textMateRules: generateTextMateRules(rules, false),
+        [LIGHT_THEMES]: { textMateRules: generateTextMateRules(rules, true) },
+    };
     return JSON.stringify(pkg, null, 2) + '\n';
 }
 
@@ -118,6 +175,12 @@ function generateCssBlock(rules: PaletteRule[]): string {
         if (r.italic) decls.push('font-style: italic;');
         if (r.bold) decls.push('font-weight: bold;');
         lines.push(`${cls}${pad}{ ${decls.join(' ')} }`);
+    }
+    // Light themes: VS Code puts vscode-light / vscode-high-contrast-light on
+    // the preview body.
+    for (const r of ordered) {
+        const cls = '.ipm-' + r.class;
+        lines.push(`.vscode-light ${cls}, .vscode-high-contrast-light ${cls} { color: ${r.fgLight}; }`);
     }
     lines.push(CSS_GEN_END);
     return lines.join('\n');
@@ -181,7 +244,7 @@ ${genBlock}
 // ---- src/palette.gen.ts (data module consumed by src/palette.ts) ------------
 
 function tsStyle(r: PaletteRule): string {
-    const parts = [`fg: '${r.fg}'`];
+    const parts = [`fg: '${r.fg}'`, `fgLight: '${r.fgLight}'`];
     if (r.italic) parts.push('italic: true');
     if (r.bold) parts.push('bold: true');
     return `{ ${parts.join(', ')} }`;
@@ -202,7 +265,8 @@ function generatePaletteGen(rules: PaletteRule[]): string {
     L.push('// consume this data live in ./palette.ts.');
     L.push('');
     L.push('export interface TokenStyle {');
-    L.push('    fg: string; // hex `#rrggbb`, lowercase');
+    L.push('    fg: string; // dark themes, hex `#rrggbb`, lowercase');
+    L.push('    fgLight: string; // light themes');
     L.push('    italic?: boolean;');
     L.push('    bold?: boolean;');
     L.push('}');

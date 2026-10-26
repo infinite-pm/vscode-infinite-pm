@@ -33,6 +33,29 @@ More scenarios — live refresh, includes, diagnostics — with step-by-step sti
 - **LSP auto-restart** when the `ipm-rpc` binary file changes — useful while iterating on the server (`go install ./cmd/ipm-rpc`). Gated by `ipm.restartOnBinaryChange`.
 - **`.ipmt` preview pane** — clicking the "Open Preview to the Side" icon on a `.ipmt` file opens a webview that renders the parsed SVG and re-renders as you type. The SVG is rendered in-memory by `ipm.embedBuffer` and **never written to disk** — for `.ipmt` files the source itself IS the graph. The preview supports **pan + zoom** with the same UX as VS Code's built-in image preview: mouse wheel to zoom centered on the cursor; `Ctrl/Cmd` + `=` / `-` / `0` to step in / step out / reset; click to step zoom (Shift+click for the other direction); drag to pan; a bottom-right zoom indicator that appears while zoomed (click to reset). Vectors stay crisp at every zoom level because the SVG element is resized on each step rather than CSS-scaled. Your zoom/pan persists across debounced edits.
 
+## Colours
+
+The **whole node** is one colour by kind: the title (quoted or bare), the alias, and the `::e` / `::t` / `::c` marker. An unmarked node is an event. The generic string colour is never used for a node title. The quotes around a title take the node colour too, not the bracket-pair colour: `"` is not declared as a bracket in `language-configuration.json` (it still auto-closes and surrounds). Only tooltips (`--"text"-->`, `"text" ::tip`) keep their own colour.
+
+| Kind | Semantic type | TextMate scope: title / marker | Dark theme | Light theme |
+|---|---|---|---|---|
+| event (unmarked or `::e`) | `ipmEvent` | `entity.name.type.event.ipmt` / `storage.type.node.event.ipmt` | `#ff8000` 6.55:1 | `#a65300` 5.44:1 |
+| thing (`::t`) | `ipmThing` | `entity.name.type.thing.ipmt` / `storage.type.node.thing.ipmt` | `#6fc24f` 7.46:1 | `#2d6e1f` 6.25:1 |
+| concept (`::c`) | `ipmConcept` | `entity.name.type.concept.ipmt` / `storage.type.node.concept.ipmt` | `#6c8ebf` 4.91:1 | `#1a5f9e` 6.62:1 |
+
+Contrast is the WCAG ratio against the editor background: `#1f1f1f` for dark (so also fine on `#121314` and black), `#ffffff` for light. Every colour in the palette is at least 4.5:1 (AA); `src/__tests__/colours.test.ts` and ipm-tools' `palette_contrast_test.go` compute it. A node with an alias shows its long title one step softer (`ipmEvent.hasAlias` etc., also AA). Arrows by relation reuse the kind colours: leads-to = event, part-of = thing, expresses = concept, near-to grey. Token spans never get a background colour, in the editor or in the preview.
+
+**Two layers carry the same colours.**
+
+1. Semantic tokens from the language server (`ipmEvent`, `ipmThing`, `ipmConcept`, with the `alias`, `hasAlias` and `marker` modifiers) are coloured by `editor.semanticTokenColorCustomizations`. The server paints a quoted title as its node kind, not as `ipmString`.
+2. The TextMate grammar scopes the title, alias and marker by kind too, and `editor.tokenColorCustomizations.textMateRules` colours those scopes. This is what you see with semantic highlighting off, or before the server answers. Limit: the grammar only sees one line, so a bare re-mention of a thing declared elsewhere (`... --> wearB`) reads as an event until semantic tokens arrive.
+
+**Light and dark.** One value cannot reach 4.5:1 on both backgrounds, so the defaults are the dark values plus a `"[*Light*]"` block inside each of the two customisation settings. VS Code applies a `[name]` block to every colour theme whose name matches (`*` is a wildcard), so Light 2026, Default Light Modern, Visual Studio Light and Default High Contrast Light get the light values. Limit: a light theme whose name does not contain "Light" gets the dark values; add your own `"[Theme Name]"` block under `editor.tokenColorCustomizations` / `editor.semanticTokenColorCustomizations` in your settings to fix that. The markdown preview does the same with the `vscode-light` / `vscode-high-contrast-light` body classes (`media/ipm-preview.css`).
+
+**Semantic highlighting stays on.** The extension sets `editor.semanticHighlighting.enabled: true` as a language-scoped default for `[ipmt]` and `[markdown]`, so a theme that says `configuredByTheme` cannot switch it off for our languages. A value you set yourself for those languages still wins.
+
+The colours are generated: edit `pkg/ipmtokens/palette.json` in ipm-tools (`fg` dark, `fgLight` light) and run `npm run gen-palette` (set `IPM_TOOLS_DIR` to use an ipm-tools checkout other than the sibling `../ipm-tools`).
+
 ## Installation
 
 Install **infinite.pm** from the

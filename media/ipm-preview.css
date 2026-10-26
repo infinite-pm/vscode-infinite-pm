@@ -39,23 +39,46 @@ code.language-ipmt {
 .ipm-e-alias         { color: #ff8000; }
 .ipm-e-title-aliased { color: #ffaa55; }
 .ipm-e-marker        { color: #ff8000; font-weight: bold; }
-.ipm-t-title         { color: #4d8a3a; }
-.ipm-t-alias         { color: #4d8a3a; }
+.ipm-t-title         { color: #6fc24f; }
+.ipm-t-alias         { color: #6fc24f; }
 .ipm-t-title-aliased { color: #82b366; }
-.ipm-t-marker        { color: #4d8a3a; font-weight: bold; }
+.ipm-t-marker        { color: #6fc24f; font-weight: bold; }
 .ipm-c-title         { color: #6c8ebf; }
 .ipm-c-alias         { color: #6c8ebf; }
 .ipm-c-title-aliased { color: #9bb4d6; }
 .ipm-c-marker        { color: #6c8ebf; font-weight: bold; }
 .ipm-arrow           { color: #d4d4d4; font-weight: bold; }
 .ipm-L               { color: #ff8000; font-weight: bold; }
-.ipm-P               { color: #4d8a3a; font-weight: bold; }
+.ipm-P               { color: #6fc24f; font-weight: bold; }
 .ipm-X               { color: #6c8ebf; font-weight: bold; }
 .ipm-N               { color: #aaaaaa; font-weight: bold; }
 .ipm-type-marker     { color: #b08fff; }
 .ipm-relation        { color: #b08fff; }
-.ipm-comment         { color: #808080; font-style: italic; }
+.ipm-comment         { color: #8c8c8c; font-style: italic; }
 .ipm-string          { color: #ce9178; }
 .ipm-tooltip         { color: #b58900; font-style: italic; }
 .ipm-unresolved      { color: #8a8a8a; }
+.vscode-light .ipm-e-title, .vscode-high-contrast-light .ipm-e-title { color: #a65300; }
+.vscode-light .ipm-e-alias, .vscode-high-contrast-light .ipm-e-alias { color: #a65300; }
+.vscode-light .ipm-e-title-aliased, .vscode-high-contrast-light .ipm-e-title-aliased { color: #b35900; }
+.vscode-light .ipm-e-marker, .vscode-high-contrast-light .ipm-e-marker { color: #a65300; }
+.vscode-light .ipm-t-title, .vscode-high-contrast-light .ipm-t-title { color: #2d6e1f; }
+.vscode-light .ipm-t-alias, .vscode-high-contrast-light .ipm-t-alias { color: #2d6e1f; }
+.vscode-light .ipm-t-title-aliased, .vscode-high-contrast-light .ipm-t-title-aliased { color: #3c7a2a; }
+.vscode-light .ipm-t-marker, .vscode-high-contrast-light .ipm-t-marker { color: #2d6e1f; }
+.vscode-light .ipm-c-title, .vscode-high-contrast-light .ipm-c-title { color: #1a5f9e; }
+.vscode-light .ipm-c-alias, .vscode-high-contrast-light .ipm-c-alias { color: #1a5f9e; }
+.vscode-light .ipm-c-title-aliased, .vscode-high-contrast-light .ipm-c-title-aliased { color: #2877bd; }
+.vscode-light .ipm-c-marker, .vscode-high-contrast-light .ipm-c-marker { color: #1a5f9e; }
+.vscode-light .ipm-arrow, .vscode-high-contrast-light .ipm-arrow { color: #404040; }
+.vscode-light .ipm-L, .vscode-high-contrast-light .ipm-L { color: #a65300; }
+.vscode-light .ipm-P, .vscode-high-contrast-light .ipm-P { color: #2d6e1f; }
+.vscode-light .ipm-X, .vscode-high-contrast-light .ipm-X { color: #1a5f9e; }
+.vscode-light .ipm-N, .vscode-high-contrast-light .ipm-N { color: #6b6b6b; }
+.vscode-light .ipm-type-marker, .vscode-high-contrast-light .ipm-type-marker { color: #7e57c2; }
+.vscode-light .ipm-relation, .vscode-high-contrast-light .ipm-relation { color: #7e57c2; }
+.vscode-light .ipm-comment, .vscode-high-contrast-light .ipm-comment { color: #6b6b6b; }
+.vscode-light .ipm-string, .vscode-high-contrast-light .ipm-string { color: #a31515; }
+.vscode-light .ipm-tooltip, .vscode-high-contrast-light .ipm-tooltip { color: #8a6d00; }
+.vscode-light .ipm-unresolved, .vscode-high-contrast-light .ipm-unresolved { color: #767676; }
 /* GEN-END palette */

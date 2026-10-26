@@ -3,19 +3,29 @@
   "name": "ipmt",
   "scopeName": "source.ipmt",
   "fileTypes": ["ipmt"],
+  "comment": "Colours: the whole node (title, alias, kind marker) carries its kind scope — entity.name.type.{thing,event,concept}.ipmt and storage.type.node.{thing,event,concept}.ipmt — so the TextMate fallback colours it the same as the semantic tokens. An unmarked title is an event. Only the LSP knows a bare re-mention of a thing declared elsewhere, so in the fallback it reads as an event. See README.md#colours.",
   "patterns": [
     { "include": "#comments" },
-    { "include": "#strings" },
     { "include": "#arrows" },
-    { "include": "#typeMarkers" }
+    { "include": "#tooltipStrings" },
+    { "include": "#thingNode" },
+    { "include": "#eventNode" },
+    { "include": "#conceptNode" },
+    { "include": "#aliasBeforeThing" },
+    { "include": "#aliasBeforeEvent" },
+    { "include": "#aliasBeforeConcept" },
+    { "include": "#typeMarkers" },
+    { "include": "#quotedTitle" },
+    { "include": "#bareTitle" }
   ],
   "repository": {
     "comments": {
       "name": "comment.line.number-sign.ipmt",
       "match": "^\\s*#.*$"
     },
-    "strings": {
-      "name": "string.quoted.double.ipmt",
+    "quotedTitle": {
+      "comment": "A quoted title with no kind marker right after it: an event (the default kind).",
+      "name": "entity.name.type.event.ipmt",
       "begin": "\"",
       "end": "\"",
       "patterns": [
@@ -25,17 +35,73 @@
         }
       ]
     },
+    "bareTitle": {
+      "comment": "A bare title with no kind marker: an event (the default kind).",
+      "name": "entity.name.type.event.ipmt",
+      "match": "[^\\s\"#:<-](?:(?!::|-->|<--|---|--\")[^\\s\"#])*"
+    },
+    "tooltipStrings": {
+      "patterns": [
+        {
+          "comment": "Node tooltip: \"text\" ::tip",
+          "name": "string.quoted.double.tooltip.ipmt",
+          "match": "\"(?:[^\"\\\\]|\\\\.)*\"(?=\\s*::tip\\b)"
+        }
+      ]
+    },
     "arrows": {
       "patterns": [
         {
-          "comment": "Explicit-relation arrow: --::P-->, --::L-->, --::X-->, --::N--",
-          "match": "(--)(::)([PLXN])(--)(>?)",
+          "comment": "Arrow with an edge tooltip: --\"text\"-->",
+          "match": "(--)(\"(?:[^\"\\\\]|\\\\.)*\")(-->|--)",
           "captures": {
             "1": { "name": "keyword.operator.arrow.ipmt" },
-            "2": { "name": "storage.type.relation.ipmt" },
-            "3": { "name": "storage.type.relation.ipmt" },
-            "4": { "name": "keyword.operator.arrow.ipmt" },
-            "5": { "name": "keyword.operator.arrow.ipmt" }
+            "2": { "name": "string.quoted.double.tooltip.ipmt" },
+            "3": { "name": "keyword.operator.arrow.ipmt" }
+          }
+        },
+        {
+          "comment": "Explicit leads-to arrow: --::L-->",
+          "match": "(--)(::)(L)(--)(>?)",
+          "captures": {
+            "1": { "name": "keyword.operator.arrow.leadsTo.ipmt" },
+            "2": { "name": "keyword.operator.arrow.leadsTo.ipmt" },
+            "3": { "name": "keyword.operator.arrow.leadsTo.ipmt" },
+            "4": { "name": "keyword.operator.arrow.leadsTo.ipmt" },
+            "5": { "name": "keyword.operator.arrow.leadsTo.ipmt" }
+          }
+        },
+        {
+          "comment": "Explicit part-of arrow: --::P-->",
+          "match": "(--)(::)(P)(--)(>?)",
+          "captures": {
+            "1": { "name": "keyword.operator.arrow.partOf.ipmt" },
+            "2": { "name": "keyword.operator.arrow.partOf.ipmt" },
+            "3": { "name": "keyword.operator.arrow.partOf.ipmt" },
+            "4": { "name": "keyword.operator.arrow.partOf.ipmt" },
+            "5": { "name": "keyword.operator.arrow.partOf.ipmt" }
+          }
+        },
+        {
+          "comment": "Explicit expresses arrow: --::X-->",
+          "match": "(--)(::)(X)(--)(>?)",
+          "captures": {
+            "1": { "name": "keyword.operator.arrow.expresses.ipmt" },
+            "2": { "name": "keyword.operator.arrow.expresses.ipmt" },
+            "3": { "name": "keyword.operator.arrow.expresses.ipmt" },
+            "4": { "name": "keyword.operator.arrow.expresses.ipmt" },
+            "5": { "name": "keyword.operator.arrow.expresses.ipmt" }
+          }
+        },
+        {
+          "comment": "Explicit near-to arrow: --::N--",
+          "match": "(--)(::)(N)(--)(>?)",
+          "captures": {
+            "1": { "name": "keyword.operator.arrow.nearTo.ipmt" },
+            "2": { "name": "keyword.operator.arrow.nearTo.ipmt" },
+            "3": { "name": "keyword.operator.arrow.nearTo.ipmt" },
+            "4": { "name": "keyword.operator.arrow.nearTo.ipmt" },
+            "5": { "name": "keyword.operator.arrow.nearTo.ipmt" }
           }
         },
         {
@@ -45,17 +111,99 @@
         },
         {
           "comment": "Near-to (undirected)",
-          "name": "keyword.operator.near.ipmt",
+          "name": "keyword.operator.arrow.nearTo.ipmt",
           "match": "---"
         }
       ]
     },
+    "thingNode": {
+      "comment": "A title (quoted or bare) followed by ::t, then anything up to the next arrow (aliases, ::a).",
+      "begin": "(?:(\"(?:[^\"\\\\]|\\\\.)*\")|((?!\\s)(?:(?!::|-->|<--|---|--\")[^\"#\\n])*?[^\\s\"#:]))(\\s*)(::t)\\b",
+      "beginCaptures": {
+        "1": { "name": "entity.name.type.thing.ipmt" },
+        "2": { "name": "entity.name.type.thing.ipmt" },
+        "4": { "name": "storage.type.node.thing.ipmt" }
+      },
+      "end": "(?=-->|<--|---|--::|--\")|$",
+      "patterns": [
+        { "include": "#aliasThing" },
+        { "include": "#tooltipStrings" },
+        { "include": "#typeMarkers" }
+      ]
+    },
+    "eventNode": {
+      "begin": "(?:(\"(?:[^\"\\\\]|\\\\.)*\")|((?!\\s)(?:(?!::|-->|<--|---|--\")[^\"#\\n])*?[^\\s\"#:]))(\\s*)(::e)\\b",
+      "beginCaptures": {
+        "1": { "name": "entity.name.type.event.ipmt" },
+        "2": { "name": "entity.name.type.event.ipmt" },
+        "4": { "name": "storage.type.node.event.ipmt" }
+      },
+      "end": "(?=-->|<--|---|--::|--\")|$",
+      "patterns": [
+        { "include": "#aliasEvent" },
+        { "include": "#tooltipStrings" },
+        { "include": "#typeMarkers" }
+      ]
+    },
+    "conceptNode": {
+      "begin": "(?:(\"(?:[^\"\\\\]|\\\\.)*\")|((?!\\s)(?:(?!::|-->|<--|---|--\")[^\"#\\n])*?[^\\s\"#:]))(\\s*)(::c)\\b",
+      "beginCaptures": {
+        "1": { "name": "entity.name.type.concept.ipmt" },
+        "2": { "name": "entity.name.type.concept.ipmt" },
+        "4": { "name": "storage.type.node.concept.ipmt" }
+      },
+      "end": "(?=-->|<--|---|--::|--\")|$",
+      "patterns": [
+        { "include": "#aliasConcept" },
+        { "include": "#tooltipStrings" },
+        { "include": "#typeMarkers" }
+      ]
+    },
+    "aliasBeforeThing": {
+      "comment": "alias::a written before the title: the kind marker follows later on the same line.",
+      "match": "[\\w-]+(?=::a\\b[^#\\n]*::t\\b)",
+      "name": "entity.name.type.thing.ipmt"
+    },
+    "aliasBeforeEvent": {
+      "match": "[\\w-]+(?=::a\\b[^#\\n]*::e\\b)",
+      "name": "entity.name.type.event.ipmt"
+    },
+    "aliasBeforeConcept": {
+      "match": "[\\w-]+(?=::a\\b[^#\\n]*::c\\b)",
+      "name": "entity.name.type.concept.ipmt"
+    },
+    "aliasThing": {
+      "comment": "alias::a written after the kind marker: it takes the node's kind.",
+      "match": "[\\w-]+(?=::a\\b)",
+      "name": "entity.name.type.thing.ipmt"
+    },
+    "aliasEvent": {
+      "match": "[\\w-]+(?=::a\\b)",
+      "name": "entity.name.type.event.ipmt"
+    },
+    "aliasConcept": {
+      "match": "[\\w-]+(?=::a\\b)",
+      "name": "entity.name.type.concept.ipmt"
+    },
     "typeMarkers": {
       "patterns": [
         {
-          "comment": "Type / alias / tooltip markers",
+          "comment": "Alias / tooltip markers",
           "name": "storage.type.node.ipmt",
-          "match": "::(e|t|c|a|tip)\\b"
+          "match": "::(a|tip)\\b"
+        },
+        {
+          "comment": "A kind marker that follows no title on this line (the title was matched elsewhere).",
+          "name": "storage.type.node.thing.ipmt",
+          "match": "::t\\b"
+        },
+        {
+          "name": "storage.type.node.event.ipmt",
+          "match": "::e\\b"
+        },
+        {
+          "name": "storage.type.node.concept.ipmt",
+          "match": "::c\\b"
         },
         {
           "comment": "Undecided / unresolved kind marker (::?<letters>, 2-3 of e/t/c). The LSP semantic tokens paint each letter with its own kind color; this match is the editor-pane fallback before semantic tokens arrive.",

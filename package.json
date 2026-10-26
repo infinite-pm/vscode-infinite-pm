@@ -3,7 +3,7 @@
   "displayName": "infinite.pm",
   "description": "infinite.pm (Infinite Process Modeling) — ipmt language support, diagnostics, and embed-on-save that keeps SVG diagrams in sync",
   "icon": "media/icon.png",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "infinite-pm",
   "license": "Apache-2.0",
   "repository": {
@@ -232,6 +232,12 @@
       }
     ],
     "configurationDefaults": {
+      "[ipmt]": {
+        "editor.semanticHighlighting.enabled": true
+      },
+      "[markdown]": {
+        "editor.semanticHighlighting.enabled": true
+      },
       "editor.semanticTokenColorCustomizations": {
         "rules": {
           "ipmEvent": {
@@ -248,16 +254,16 @@
             "bold": true
           },
           "ipmThing": {
-            "foreground": "#4d8a3a"
+            "foreground": "#6fc24f"
           },
           "ipmThing.alias": {
-            "foreground": "#4d8a3a"
+            "foreground": "#6fc24f"
           },
           "ipmThing.hasAlias": {
             "foreground": "#82b366"
           },
           "ipmThing.marker": {
-            "foreground": "#4d8a3a",
+            "foreground": "#6fc24f",
             "bold": true
           },
           "ipmConcept": {
@@ -282,7 +288,7 @@
             "bold": true
           },
           "ipmArrow.partOf": {
-            "foreground": "#4d8a3a",
+            "foreground": "#6fc24f",
             "bold": true
           },
           "ipmArrow.expresses": {
@@ -300,7 +306,7 @@
             "foreground": "#b08fff"
           },
           "ipmComment": {
-            "foreground": "#808080",
+            "foreground": "#8c8c8c",
             "italic": true
           },
           "ipmString": {
@@ -313,6 +319,321 @@
           "ipmUnresolved": {
             "foreground": "#8a8a8a"
           }
+        },
+        "[*Light*]": {
+          "rules": {
+            "ipmEvent": {
+              "foreground": "#a65300"
+            },
+            "ipmEvent.alias": {
+              "foreground": "#a65300"
+            },
+            "ipmEvent.hasAlias": {
+              "foreground": "#b35900"
+            },
+            "ipmEvent.marker": {
+              "foreground": "#a65300",
+              "bold": true
+            },
+            "ipmThing": {
+              "foreground": "#2d6e1f"
+            },
+            "ipmThing.alias": {
+              "foreground": "#2d6e1f"
+            },
+            "ipmThing.hasAlias": {
+              "foreground": "#3c7a2a"
+            },
+            "ipmThing.marker": {
+              "foreground": "#2d6e1f",
+              "bold": true
+            },
+            "ipmConcept": {
+              "foreground": "#1a5f9e"
+            },
+            "ipmConcept.alias": {
+              "foreground": "#1a5f9e"
+            },
+            "ipmConcept.hasAlias": {
+              "foreground": "#2877bd"
+            },
+            "ipmConcept.marker": {
+              "foreground": "#1a5f9e",
+              "bold": true
+            },
+            "ipmArrow": {
+              "foreground": "#404040",
+              "bold": true
+            },
+            "ipmArrow.leadsTo": {
+              "foreground": "#a65300",
+              "bold": true
+            },
+            "ipmArrow.partOf": {
+              "foreground": "#2d6e1f",
+              "bold": true
+            },
+            "ipmArrow.expresses": {
+              "foreground": "#1a5f9e",
+              "bold": true
+            },
+            "ipmArrow.nearTo": {
+              "foreground": "#6b6b6b",
+              "bold": true
+            },
+            "ipmTypeMarker": {
+              "foreground": "#7e57c2"
+            },
+            "ipmRelation": {
+              "foreground": "#7e57c2"
+            },
+            "ipmComment": {
+              "foreground": "#6b6b6b",
+              "italic": true
+            },
+            "ipmString": {
+              "foreground": "#a31515"
+            },
+            "ipmTooltip": {
+              "foreground": "#8a6d00",
+              "italic": true
+            },
+            "ipmUnresolved": {
+              "foreground": "#767676"
+            }
+          }
+        }
+      },
+      "editor.tokenColorCustomizations": {
+        "textMateRules": [
+          {
+            "scope": "entity.name.type.event.ipmt",
+            "settings": {
+              "foreground": "#ff8000"
+            }
+          },
+          {
+            "scope": "storage.type.node.event.ipmt",
+            "settings": {
+              "foreground": "#ff8000",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "entity.name.type.thing.ipmt",
+            "settings": {
+              "foreground": "#6fc24f"
+            }
+          },
+          {
+            "scope": "storage.type.node.thing.ipmt",
+            "settings": {
+              "foreground": "#6fc24f",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "entity.name.type.concept.ipmt",
+            "settings": {
+              "foreground": "#6c8ebf"
+            }
+          },
+          {
+            "scope": "storage.type.node.concept.ipmt",
+            "settings": {
+              "foreground": "#6c8ebf",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "keyword.operator.arrow.ipmt",
+            "settings": {
+              "foreground": "#d4d4d4",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "keyword.operator.arrow.leadsTo.ipmt",
+            "settings": {
+              "foreground": "#ff8000",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "keyword.operator.arrow.partOf.ipmt",
+            "settings": {
+              "foreground": "#6fc24f",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "keyword.operator.arrow.expresses.ipmt",
+            "settings": {
+              "foreground": "#6c8ebf",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "keyword.operator.arrow.nearTo.ipmt",
+            "settings": {
+              "foreground": "#aaaaaa",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "storage.type.node.ipmt",
+            "settings": {
+              "foreground": "#b08fff"
+            }
+          },
+          {
+            "scope": "storage.type.relation.ipmt",
+            "settings": {
+              "foreground": "#b08fff"
+            }
+          },
+          {
+            "scope": "comment.line.number-sign.ipmt",
+            "settings": {
+              "foreground": "#8c8c8c",
+              "fontStyle": "italic"
+            }
+          },
+          {
+            "scope": "string.quoted.double.ipmt",
+            "settings": {
+              "foreground": "#ce9178"
+            }
+          },
+          {
+            "scope": "string.quoted.double.tooltip.ipmt",
+            "settings": {
+              "foreground": "#b58900",
+              "fontStyle": "italic"
+            }
+          },
+          {
+            "scope": "comment.unresolved.ipmt",
+            "settings": {
+              "foreground": "#8a8a8a"
+            }
+          }
+        ],
+        "[*Light*]": {
+          "textMateRules": [
+            {
+              "scope": "entity.name.type.event.ipmt",
+              "settings": {
+                "foreground": "#a65300"
+              }
+            },
+            {
+              "scope": "storage.type.node.event.ipmt",
+              "settings": {
+                "foreground": "#a65300",
+                "fontStyle": "bold"
+              }
+            },
+            {
+              "scope": "entity.name.type.thing.ipmt",
+              "settings": {
+                "foreground": "#2d6e1f"
+              }
+            },
+            {
+              "scope": "storage.type.node.thing.ipmt",
+              "settings": {
+                "foreground": "#2d6e1f",
+                "fontStyle": "bold"
+              }
+            },
+            {
+              "scope": "entity.name.type.concept.ipmt",
+              "settings": {
+                "foreground": "#1a5f9e"
+              }
+            },
+            {
+              "scope": "storage.type.node.concept.ipmt",
+              "settings": {
+                "foreground": "#1a5f9e",
+                "fontStyle": "bold"
+              }
+            },
+            {
+              "scope": "keyword.operator.arrow.ipmt",
+              "settings": {
+                "foreground": "#404040",
+                "fontStyle": "bold"
+              }
+            },
+            {
+              "scope": "keyword.operator.arrow.leadsTo.ipmt",
+              "settings": {
+                "foreground": "#a65300",
+                "fontStyle": "bold"
+              }
+            },
+            {
+              "scope": "keyword.operator.arrow.partOf.ipmt",
+              "settings": {
+                "foreground": "#2d6e1f",
+                "fontStyle": "bold"
+              }
+            },
+            {
+              "scope": "keyword.operator.arrow.expresses.ipmt",
+              "settings": {
+                "foreground": "#1a5f9e",
+                "fontStyle": "bold"
+              }
+            },
+            {
+              "scope": "keyword.operator.arrow.nearTo.ipmt",
+              "settings": {
+                "foreground": "#6b6b6b",
+                "fontStyle": "bold"
+              }
+            },
+            {
+              "scope": "storage.type.node.ipmt",
+              "settings": {
+                "foreground": "#7e57c2"
+              }
+            },
+            {
+              "scope": "storage.type.relation.ipmt",
+              "settings": {
+                "foreground": "#7e57c2"
+              }
+            },
+            {
+              "scope": "comment.line.number-sign.ipmt",
+              "settings": {
+                "foreground": "#6b6b6b",
+                "fontStyle": "italic"
+              }
+            },
+            {
+              "scope": "string.quoted.double.ipmt",
+              "settings": {
+                "foreground": "#a31515"
+              }
+            },
+            {
+              "scope": "string.quoted.double.tooltip.ipmt",
+              "settings": {
+                "foreground": "#8a6d00",
+                "fontStyle": "italic"
+              }
+            },
+            {
+              "scope": "comment.unresolved.ipmt",
+              "settings": {
+                "foreground": "#767676"
+              }
+            }
+          ]
         }
       }
     },
@@ -557,6 +878,8 @@
     "tsx": "^4.19.0",
     "typescript": "^5.0.0",
     "vscode-languageclient": "^9.0.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2",
     "webpack": "^5.80.0",
     "webpack-cli": "^5.0.0"
   }
