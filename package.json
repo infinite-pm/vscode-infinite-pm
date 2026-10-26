@@ -88,12 +88,12 @@
       {
         "id": "ipmEvent",
         "superType": "class",
-        "description": "An ipmt event node — fast, transient happening."
+        "description": "An ipmt event node — fast, transient happening. The default kind of an unmarked label (`::e` is optional)."
       },
       {
         "id": "ipmThing",
         "superType": "interface",
-        "description": "An ipmt thing node — slow, persistent participant."
+        "description": "An ipmt thing node — slow, persistent participant. Written with an explicit `::t`; an unmarked label is an event."
       },
       {
         "id": "ipmConcept",
