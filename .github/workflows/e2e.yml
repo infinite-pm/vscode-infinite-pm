@@ -9,7 +9,7 @@ name: E2E
 # slow runner, a download hiccup — and a gate that cries wolf is how a team
 # learns to ignore red. It runs on merges to main and nightly; promote it to a
 # required check once it has been green for twenty consecutive nights, and cut
-# whatever was not (see ipm-drawio/wip/e2e-coverage/plan.md).
+# whatever was not.
 #
 # Ubuntu only, on the same reasoning: a three-OS matrix costs three times as
 # much to buy evidence of an OS-specific bug we have never seen.

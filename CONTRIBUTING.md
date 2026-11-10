@@ -10,7 +10,9 @@ full command list. The short version:
 
 - Clone [ipm-tools](https://github.com/infinite-pm/ipm-tools) **next to this
   repo** (`../ipm-tools`) — the palette codegen reads its source of truth
-  from there, and `ipm-rpc` (the LSP server) is built from it.
+  from there, and `ipm-rpc` (the LSP server) is built from it. A checkout
+  elsewhere works for the build, the tests and the guards when `IPM_TOOLS_DIR`
+  names it.
 - `npm install`, then `npm run build`.
 - `npm test` runs the unit tests (plus the palette drift check). Please make
   sure it passes before sending a PR. Under a second, no VS Code involved.
@@ -23,7 +25,6 @@ full command list. The short version:
     without that, `make e2e` in a `../vscode-infinite-pm-dev` checkout runs the
     same suite inside the recording container, which carries its own Xvfb.
   - It needs the server bundled where the packaged extension keeps it:
-    `make vscode-pkg` from `../ipm-drawio`, or
     `go build -C ../ipm-tools -o bin/linux-amd64/ipm-rpc ./cmd/ipm-rpc`.
   - CI runs it on merges to main and nightly, not on PRs — see
     `.github/workflows/e2e.yml` for why.

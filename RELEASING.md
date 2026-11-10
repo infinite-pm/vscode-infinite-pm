@@ -178,7 +178,7 @@ Most of a release is proved automatically before `publish` runs:
 
 | layer | what it proves | when |
 | --- | --- | --- |
-| `npm test` (158) | renderer, caches, settings blast radius, the manifest, the README tables, the cross-repo token legend | every push + PR |
+| `npm test` (182) | renderer, caches, settings blast radius, the manifest, the README tables, the cross-repo token legend | every push + PR |
 | `go test ./...` in ipm-tools | the server itself, over a real LSP session | every push there |
 | `npm run test:e2e` (16) | commands, tab state, clipboard, diagnostics, embed-to-disk — in a real VS Code | merges to main + nightly |
 | `npm run verify-guards` (7) | that the assertions above still fail when the bug returns, each from a green baseline | weekly + on demand |

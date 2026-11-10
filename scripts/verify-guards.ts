@@ -98,7 +98,10 @@ const CASES: Case[] = [
 // ../ipm-tools/pkg/ipmtokens/tokens.go. A copy with no sibling made that spec
 // die of ENOENT, which runsRed could not tell apart from the guard firing —
 // the case reported ok from the day it was written and never checked anything.
-const TOOLS = path.resolve(ROOT, '..', 'ipm-tools');
+// IPM_TOOLS_DIR names another checkout, as it does for scripts/gen-palette.ts.
+const TOOLS = process.env.IPM_TOOLS_DIR
+    ? path.resolve(process.env.IPM_TOOLS_DIR)
+    : path.resolve(ROOT, '..', 'ipm-tools');
 
 function scratchCopy(): string {
     const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'ipm-guards-'));

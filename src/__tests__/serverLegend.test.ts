@@ -11,7 +11,8 @@
 //
 // Reading the Go source directly is the same arrangement paletteConsistency
 // already relies on: `npm test` requires the sibling ../ipm-tools clone (see
-// CONTRIBUTING.md), and CI checks it out beside this repo.
+// CONTRIBUTING.md), and CI checks it out beside this repo. IPM_TOOLS_DIR names
+// another checkout, the same variable scripts/gen-palette.ts reads.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,7 +20,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const TOKENS_GO = path.resolve(ROOT, '..', 'ipm-tools', 'pkg', 'ipmtokens', 'tokens.go');
+const IPM_TOOLS_DIR = process.env.IPM_TOOLS_DIR
+    ? path.resolve(process.env.IPM_TOOLS_DIR)
+    : path.resolve(ROOT, '..', 'ipm-tools');
+const TOKENS_GO = path.join(IPM_TOOLS_DIR, 'pkg', 'ipmtokens', 'tokens.go');
 
 function goStringSlice(name: string): string[] {
     const src = fs.readFileSync(TOKENS_GO, 'utf8');
