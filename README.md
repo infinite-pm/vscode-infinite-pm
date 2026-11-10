@@ -121,7 +121,7 @@ renders an "ipm-rpc not running" banner instead). A one-shot notification explai
 | --- | --- | --- |
 | `ipm.serverPath` | `""` | Path to the `ipm-rpc` binary. *(machine-overridable: settable per user or per remote machine, never by a workspace.)* If empty, the extension searches `PATH` for `ipm-rpc`; if still not found, falls back to the `ipm-rpc` bundled in the extension's `bin/<os>-<arch>/` directory. |
 | `ipm.embedOnSave` | `true` | When you save a `.md` file with ipmt blocks, refresh the committed SVGs and marker hashes via `ipm.embed`. |
-| `ipm.embedIgnore` | `[]` | Extra directory names whose `.ipmt` changes never trigger an include refresh, on top of the built-in `temp`, `tmp`, `node_modules`, `.git`, `out`, `dist`, `target`, `build`. Matched as a path segment anywhere. |
+| `ipm.embedIgnore` | `[]` | Extra directory names whose `.ipmt` changes never trigger an include refresh, on top of the built-in `temp`, `tmp`, `node_modules`, `.git`, `out`, `dist`, `target`, `build`. Matched as a path segment anywhere below the workspace folder. |
 | `ipm.embedDebounceMs` | `0` | Debounce period before embed-on-save fires. `0` = no debounce; embed runs on every save. Raise to e.g. `800` if you save rapidly during editing. |
 | `ipm.liveRefresh` | `true` | Refresh ipmt diagrams in the markdown preview as you type (no save needed). Renders are in-memory via `ipm.embedBuffer`; the on-disk SVGs are untouched until you save and `ipm.embed` runs. |
 | `ipm.liveRefreshDebounceMs` | `300` | Idle time (ms) after the last keystroke before live-refresh fires. `0` = re-render on every change (heavier). |

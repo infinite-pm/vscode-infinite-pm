@@ -657,7 +657,7 @@
             "type": "string"
           },
           "default": [],
-          "markdownDescription": "Extra directory names whose `.ipmt` changes never trigger a re-embed, in addition to the built-in `temp`, `tmp`, `node_modules`, `.git`, `out`, `dist`, `target`, `build`. Matched as path segments anywhere in the path. Generated trees produce bursts of thousands of files, and each one used to schedule a repo-wide markdown scan."
+          "markdownDescription": "Extra directory names whose `.ipmt` changes never trigger a re-embed, in addition to the built-in `temp`, `tmp`, `node_modules`, `.git`, `out`, `dist`, `target`, `build`. Matched as path segments anywhere below the workspace folder. Generated trees produce bursts of thousands of files, and each one used to schedule a repo-wide markdown scan."
         },
         "ipm.embedDebounceMs": {
           "type": "number",

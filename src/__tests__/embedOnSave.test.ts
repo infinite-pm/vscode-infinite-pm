@@ -26,6 +26,8 @@ const settings: Record<string, unknown> = {};
 let onSave: ((doc: unknown) => unknown) | undefined;
 let onWatchChange: ((uri: { fsPath: string }) => void) | undefined;
 let findFilesCalls = 0;
+// The workspace folder the stub reports for every file.
+let wsRoot = '/repo';
 
 stubCache('__ipm_vscode_stub_eos__', {
     workspace: {
@@ -47,7 +49,7 @@ stubCache('__ipm_vscode_stub_eos__', {
         // The repo-wide markdown scan. Counting calls is the whole point of
         // the burst tests: a burst must cost ONE of these, not one per file.
         findFiles: () => { findFilesCalls++; return Promise.resolve([]); },
-        getWorkspaceFolder: () => ({ uri: { toString: () => 'file:///repo', fsPath: '/repo' } }),
+        getWorkspaceFolder: () => ({ uri: { toString: () => 'file://' + wsRoot, fsPath: wsRoot } }),
         textDocuments: [],
         fs: { readFile: () => Promise.resolve(new Uint8Array()) },
     },
@@ -197,4 +199,34 @@ test('changes under temp/ trigger no scan at all', async () => {
     }
     await tick(700);
     assert.equal(findFilesCalls, 0, 'a corpus written into temp/ is not an edit to react to');
+});
+
+// The ignored names are matched BELOW the workspace folder. Matched on the
+// whole path, a workspace that itself lives under /tmp, ~/build or an out/
+// directory lost include-refresh for every file in it: the watcher dropped
+// each change as "generated", and the page kept its old diagram.
+test('a workspace that itself sits under tmp/ or out/ is not a generated tree', () => {
+    const root = '/tmp/work/out/ws';
+    assert.equal(ipmtChangeIsIgnored(`${root}/docs/x.ipmt`, [], root), false,
+        'the names above the workspace folder do not count');
+    assert.equal(ipmtChangeIsIgnored(`${root}/x.ipmt`, [], root), false);
+    assert.equal(ipmtChangeIsIgnored(`${root}/temp/x.ipmt`, [], root), true,
+        'below the folder they still do');
+    assert.equal(ipmtChangeIsIgnored(`${root}/gen/x.ipmt`, ['gen'], root), true);
+    assert.equal(ipmtChangeIsIgnored('/elsewhere/tmp/x.ipmt', [], root), true,
+        'a file outside the folder is matched on its whole path, as before');
+});
+
+test('an .ipmt change in a workspace under out/ still triggers the scan', async () => {
+    wsRoot = '/work/out/workspaces/include-refresh';
+    try {
+        findFilesCalls = 0;
+        wireIpmtIncludeRefresh(fakeCtx, fakeClient, fakeLog);
+        onWatchChange!({ fsPath: `${wsRoot}/answer.ipmt` });
+        await tick(700);
+        assert.equal(findFilesCalls, 1,
+            'the change is in the workspace, not in a generated tree; it must reach the markdown that includes it');
+    } finally {
+        wsRoot = '/repo';
+    }
 });

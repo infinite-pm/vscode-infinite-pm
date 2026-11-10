@@ -76,10 +76,23 @@ const IPMT_BURST_QUIET_MS = 500;
 // feature and, in bulk, the thing that took the extension host down. Matched
 // as path segments so `temp/` anywhere in the tree counts, not only at the
 // root. `ipm.embedIgnore` extends the list.
+//
+// "The tree" is the workspace folder: with `root` given, only the segments
+// BELOW it are matched. A workspace that itself lives under /tmp, ~/build or
+// an out/ directory is not a generated tree, and matched on its whole path
+// every change in it was dropped. A file outside `root` (or no root) is
+// matched on its whole path.
 const IPMT_IGNORED_SEGMENTS = ['temp', 'tmp', 'node_modules', '.git', 'out', 'dist', 'target', 'build'];
 
-export function ipmtChangeIsIgnored(fsPath: string, extra: string[] = []): boolean {
-    const segs = fsPath.split(/[\\/]/);
+export function ipmtChangeIsIgnored(fsPath: string, extra: string[] = [], root?: string): boolean {
+    let below = fsPath;
+    if (root) {
+        const rel = path.relative(root, fsPath);
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+            below = rel;
+        }
+    }
+    const segs = below.split(/[\\/]/);
     const ignored = new Set([...IPMT_IGNORED_SEGMENTS, ...extra]);
     // Not the basename: a file called out.ipmt is fine, a directory called out is not.
     return segs.slice(0, -1).some((seg) => ignored.has(seg));
@@ -117,7 +130,8 @@ export function wireIpmtIncludeRefresh(
         if (!cfg.get<boolean>('embedOnSave', true)) {
             return;
         }
-        if (ipmtChangeIsIgnored(ipmtFsPath, cfg.get<string[]>('embedIgnore', []))) {
+        const root = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(ipmtFsPath))?.uri.fsPath;
+        if (ipmtChangeIsIgnored(ipmtFsPath, cfg.get<string[]>('embedIgnore', []), root)) {
             dropped++;
             return;
         }
