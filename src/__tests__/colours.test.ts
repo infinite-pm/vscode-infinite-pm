@@ -60,19 +60,30 @@ test('node kinds are told apart: three distinct colours in each mode', () => {
     assert.equal(new Set(KINDS.map((k) => fg(lightTm, k.title))).size, 3);
 });
 
-test('every colour meets WCAG AA (4.5:1) on its editor background', () => {
+test('every dark colour meets WCAG AA (4.5:1) on the dark editor background', () => {
     for (const r of darkTm) {
         assert.ok(contrast(r.settings.foreground, DARK_BG) >= AA, `dark ${r.scope} ${r.settings.foreground} on ${DARK_BG}`);
-    }
-    for (const r of lightTm) {
-        assert.ok(contrast(r.settings.foreground, LIGHT_BG) >= AA, `light ${r.scope} ${r.settings.foreground} on ${LIGHT_BG}`);
     }
     for (const [name, r] of Object.entries(darkSem)) {
         assert.ok(contrast(r.foreground, DARK_BG) >= AA, `dark ${name} ${r.foreground}`);
     }
-    for (const [name, r] of Object.entries(lightSem)) {
-        assert.ok(contrast(r.foreground, LIGHT_BG) >= AA, `light ${name} ${r.foreground}`);
+});
+
+// On white there is one set of colours for everything: a light editor, the
+// pages md-html writes, the figures. It is the look of the figures and of the
+// diagrams, so the source in a light editor reads as the diagram beside it.
+// It is not a contrast rule: an orange dark enough for 4.5:1 on white is a
+// brown. ipm-tools pins the whole set (TestPalette_LightColoursDoNotMove);
+// this pins the three kinds as the extension ships them.
+const ON_WHITE: Record<string, string> = { event: '#ff8000', thing: '#4d8a3a', concept: '#6c8ebf' };
+
+test('in a light theme a node kind is the colour its figures and diagrams have', () => {
+    for (const k of KINDS) {
+        assert.equal(fg(lightTm, k.title), ON_WHITE[k.name], `light ${k.name} title`);
+        assert.equal(fg(lightTm, k.marker), ON_WHITE[k.name], `light ${k.name} marker`);
+        assert.equal(lightSem[k.semantic].foreground, ON_WHITE[k.name], `light ${k.name} semantic`);
     }
+    assert.equal(fg(darkTm, KINDS.find((k) => k.name === 'event')!.title), ON_WHITE.event, 'an event is the same orange in dark');
 });
 
 test('semantic rules and textMate rules agree per kind', () => {
@@ -81,9 +92,12 @@ test('semantic rules and textMate rules agree per kind', () => {
         assert.equal(lightSem[k.semantic].foreground, fg(lightTm, k.title), `${k.name} light title`);
         assert.equal(darkSem[`${k.semantic}.marker`].foreground, fg(darkTm, k.marker), `${k.name} dark marker`);
         assert.equal(lightSem[`${k.semantic}.marker`].foreground, fg(lightTm, k.marker), `${k.name} light marker`);
-        // the whole node is one colour: title, alias and marker
-        assert.equal(darkSem[`${k.semantic}.alias`].foreground, darkSem[k.semantic].foreground);
-        assert.equal(lightSem[`${k.semantic}.alias`].foreground, lightSem[k.semantic].foreground);
+        // the title of a node is the colour of its kind, with or without an
+        // alias; the alias itself is one step softer, so the two read apart
+        assert.equal(darkSem[`${k.semantic}.hasAlias`].foreground, darkSem[k.semantic].foreground);
+        assert.equal(lightSem[`${k.semantic}.hasAlias`].foreground, lightSem[k.semantic].foreground);
+        assert.notEqual(darkSem[`${k.semantic}.alias`].foreground, darkSem[k.semantic].foreground);
+        assert.notEqual(lightSem[`${k.semantic}.alias`].foreground, lightSem[k.semantic].foreground);
         assert.equal(darkSem[`${k.semantic}.marker`].foreground, darkSem[k.semantic].foreground);
         assert.equal(lightSem[`${k.semantic}.marker`].foreground, lightSem[k.semantic].foreground);
     }

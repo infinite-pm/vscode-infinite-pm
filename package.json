@@ -244,10 +244,10 @@
             "foreground": "#ff8000"
           },
           "ipmEvent.alias": {
-            "foreground": "#ff8000"
+            "foreground": "#ffaa55"
           },
           "ipmEvent.hasAlias": {
-            "foreground": "#ffaa55"
+            "foreground": "#ff8000"
           },
           "ipmEvent.marker": {
             "foreground": "#ff8000",
@@ -257,10 +257,10 @@
             "foreground": "#6fc24f"
           },
           "ipmThing.alias": {
-            "foreground": "#6fc24f"
+            "foreground": "#82b366"
           },
           "ipmThing.hasAlias": {
-            "foreground": "#82b366"
+            "foreground": "#6fc24f"
           },
           "ipmThing.marker": {
             "foreground": "#6fc24f",
@@ -270,10 +270,10 @@
             "foreground": "#6c8ebf"
           },
           "ipmConcept.alias": {
-            "foreground": "#6c8ebf"
+            "foreground": "#9bb4d6"
           },
           "ipmConcept.hasAlias": {
-            "foreground": "#9bb4d6"
+            "foreground": "#6c8ebf"
           },
           "ipmConcept.marker": {
             "foreground": "#6c8ebf",
@@ -323,42 +323,42 @@
         "[*Light*]": {
           "rules": {
             "ipmEvent": {
-              "foreground": "#a65300"
+              "foreground": "#ff8000"
             },
             "ipmEvent.alias": {
-              "foreground": "#a65300"
+              "foreground": "#ffaa55"
             },
             "ipmEvent.hasAlias": {
-              "foreground": "#b35900"
+              "foreground": "#ff8000"
             },
             "ipmEvent.marker": {
-              "foreground": "#a65300",
+              "foreground": "#ff8000",
               "bold": true
             },
             "ipmThing": {
-              "foreground": "#2d6e1f"
+              "foreground": "#4d8a3a"
             },
             "ipmThing.alias": {
-              "foreground": "#2d6e1f"
+              "foreground": "#82b366"
             },
             "ipmThing.hasAlias": {
-              "foreground": "#3c7a2a"
+              "foreground": "#4d8a3a"
             },
             "ipmThing.marker": {
-              "foreground": "#2d6e1f",
+              "foreground": "#4d8a3a",
               "bold": true
             },
             "ipmConcept": {
-              "foreground": "#1a5f9e"
+              "foreground": "#6c8ebf"
             },
             "ipmConcept.alias": {
-              "foreground": "#1a5f9e"
+              "foreground": "#7f9dc9"
             },
             "ipmConcept.hasAlias": {
-              "foreground": "#2877bd"
+              "foreground": "#6c8ebf"
             },
             "ipmConcept.marker": {
-              "foreground": "#1a5f9e",
+              "foreground": "#6c8ebf",
               "bold": true
             },
             "ipmArrow": {
@@ -366,40 +366,40 @@
               "bold": true
             },
             "ipmArrow.leadsTo": {
-              "foreground": "#a65300",
+              "foreground": "#ff8000",
               "bold": true
             },
             "ipmArrow.partOf": {
-              "foreground": "#2d6e1f",
+              "foreground": "#4d8a3a",
               "bold": true
             },
             "ipmArrow.expresses": {
-              "foreground": "#1a5f9e",
+              "foreground": "#6c8ebf",
               "bold": true
             },
             "ipmArrow.nearTo": {
-              "foreground": "#6b6b6b",
+              "foreground": "#aaaaaa",
               "bold": true
             },
             "ipmTypeMarker": {
-              "foreground": "#7e57c2"
+              "foreground": "#b08fff"
             },
             "ipmRelation": {
-              "foreground": "#7e57c2"
+              "foreground": "#b08fff"
             },
             "ipmComment": {
-              "foreground": "#6b6b6b",
+              "foreground": "#808080",
               "italic": true
             },
             "ipmString": {
-              "foreground": "#a31515"
+              "foreground": "#ce9178"
             },
             "ipmTooltip": {
-              "foreground": "#8a6d00",
+              "foreground": "#b58900",
               "italic": true
             },
             "ipmUnresolved": {
-              "foreground": "#767676"
+              "foreground": "#8a8a8a"
             }
           }
         }
@@ -524,39 +524,39 @@
             {
               "scope": "entity.name.type.event.ipmt",
               "settings": {
-                "foreground": "#a65300"
+                "foreground": "#ff8000"
               }
             },
             {
               "scope": "storage.type.node.event.ipmt",
               "settings": {
-                "foreground": "#a65300",
+                "foreground": "#ff8000",
                 "fontStyle": "bold"
               }
             },
             {
               "scope": "entity.name.type.thing.ipmt",
               "settings": {
-                "foreground": "#2d6e1f"
+                "foreground": "#4d8a3a"
               }
             },
             {
               "scope": "storage.type.node.thing.ipmt",
               "settings": {
-                "foreground": "#2d6e1f",
+                "foreground": "#4d8a3a",
                 "fontStyle": "bold"
               }
             },
             {
               "scope": "entity.name.type.concept.ipmt",
               "settings": {
-                "foreground": "#1a5f9e"
+                "foreground": "#6c8ebf"
               }
             },
             {
               "scope": "storage.type.node.concept.ipmt",
               "settings": {
-                "foreground": "#1a5f9e",
+                "foreground": "#6c8ebf",
                 "fontStyle": "bold"
               }
             },
@@ -570,67 +570,67 @@
             {
               "scope": "keyword.operator.arrow.leadsTo.ipmt",
               "settings": {
-                "foreground": "#a65300",
+                "foreground": "#ff8000",
                 "fontStyle": "bold"
               }
             },
             {
               "scope": "keyword.operator.arrow.partOf.ipmt",
               "settings": {
-                "foreground": "#2d6e1f",
+                "foreground": "#4d8a3a",
                 "fontStyle": "bold"
               }
             },
             {
               "scope": "keyword.operator.arrow.expresses.ipmt",
               "settings": {
-                "foreground": "#1a5f9e",
+                "foreground": "#6c8ebf",
                 "fontStyle": "bold"
               }
             },
             {
               "scope": "keyword.operator.arrow.nearTo.ipmt",
               "settings": {
-                "foreground": "#6b6b6b",
+                "foreground": "#aaaaaa",
                 "fontStyle": "bold"
               }
             },
             {
               "scope": "storage.type.node.ipmt",
               "settings": {
-                "foreground": "#7e57c2"
+                "foreground": "#b08fff"
               }
             },
             {
               "scope": "storage.type.relation.ipmt",
               "settings": {
-                "foreground": "#7e57c2"
+                "foreground": "#b08fff"
               }
             },
             {
               "scope": "comment.line.number-sign.ipmt",
               "settings": {
-                "foreground": "#6b6b6b",
+                "foreground": "#808080",
                 "fontStyle": "italic"
               }
             },
             {
               "scope": "string.quoted.double.ipmt",
               "settings": {
-                "foreground": "#a31515"
+                "foreground": "#ce9178"
               }
             },
             {
               "scope": "string.quoted.double.tooltip.ipmt",
               "settings": {
-                "foreground": "#8a6d00",
+                "foreground": "#b58900",
                 "fontStyle": "italic"
               }
             },
             {
               "scope": "comment.unresolved.ipmt",
               "settings": {
-                "foreground": "#767676"
+                "foreground": "#8a8a8a"
               }
             }
           ]

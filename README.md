@@ -35,15 +35,15 @@ More scenarios — live refresh, includes, diagnostics — with step-by-step sti
 
 ## Colours
 
-The **whole node** is one colour by kind: the title (quoted or bare), the alias, and the `::e` / `::t` / `::c` marker. An unmarked node is an event. The generic string colour is never used for a node title. The quotes around a title take the node colour too, not the bracket-pair colour: `"` is not declared as a bracket in `language-configuration.json` (it still auto-closes and surrounds). Only tooltips (`--"text"-->`, `"text" ::tip`) keep their own colour.
+The **whole node** is one colour by kind: the title (quoted or bare), the alias (one step softer), and the `::e` / `::t` / `::c` marker. An unmarked node is an event. The generic string colour is never used for a node title. The quotes around a title take the node colour too, not the bracket-pair colour: `"` is not declared as a bracket in `language-configuration.json` (it still auto-closes and surrounds). Only tooltips (`--"text"-->`, `"text" ::tip`) keep their own colour.
 
 | Kind | Semantic type | TextMate scope: title / marker | Dark theme | Light theme |
 |---|---|---|---|---|
-| event (unmarked or `::e`) | `ipmEvent` | `entity.name.type.event.ipmt` / `storage.type.node.event.ipmt` | `#ff8000` 6.55:1 | `#a65300` 5.44:1 |
-| thing (`::t`) | `ipmThing` | `entity.name.type.thing.ipmt` / `storage.type.node.thing.ipmt` | `#6fc24f` 7.46:1 | `#2d6e1f` 6.25:1 |
-| concept (`::c`) | `ipmConcept` | `entity.name.type.concept.ipmt` / `storage.type.node.concept.ipmt` | `#6c8ebf` 4.91:1 | `#1a5f9e` 6.62:1 |
+| event (unmarked or `::e`) | `ipmEvent` | `entity.name.type.event.ipmt` / `storage.type.node.event.ipmt` | `#ff8000` 6.55:1 | `#ff8000` 2.52:1 |
+| thing (`::t`) | `ipmThing` | `entity.name.type.thing.ipmt` / `storage.type.node.thing.ipmt` | `#6fc24f` 7.46:1 | `#4d8a3a` 4.19:1 |
+| concept (`::c`) | `ipmConcept` | `entity.name.type.concept.ipmt` / `storage.type.node.concept.ipmt` | `#6c8ebf` 4.91:1 | `#6c8ebf` 3.36:1 |
 
-Contrast is the WCAG ratio against the editor background: `#1f1f1f` for dark (so also fine on `#121314` and black), `#ffffff` for light. Every colour in the palette is at least 4.5:1 (AA); `src/__tests__/colours.test.ts` and ipm-tools' `palette_contrast_test.go` compute it. A node with an alias shows its long title one step softer (`ipmEvent.hasAlias` etc., also AA). Arrows by relation reuse the kind colours: leads-to = event, part-of = thing, expresses = concept, near-to grey. Token spans never get a background colour, in the editor or in the preview.
+Contrast is the WCAG ratio against the editor background: `#1f1f1f` for dark (so also fine on `#121314` and black), `#ffffff` for light. Every dark colour is at least 4.5:1 (AA). The light colours are one set for everything white: a light editor, a rendered page, the figures and the diagrams, so the source in a light editor looks like the diagram beside it. That is a look, not a contrast rule (an orange dark enough for 4.5:1 on white is a brown). `src/__tests__/colours.test.ts` and ipm-tools' `palette_contrast_test.go` check both. A node with an alias shows the alias one step softer (`ipmEvent.alias` etc.); its long title keeps the colour of its kind. Arrows by relation reuse the kind colours: leads-to = event, part-of = thing, expresses = concept, near-to grey. Token spans never get a background colour, in the editor or in the preview.
 
 **Two layers carry the same colours.**
 

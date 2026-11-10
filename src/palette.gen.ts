@@ -27,16 +27,16 @@ export type ModifierName = (typeof MODIFIER_NAMES)[number];
 // PALETTE keys match the semanticTokenTypes in
 // ../ipm-tools/pkg/ipmtokens/tokens.go.
 export const PALETTE: Record<string, TokenEntry> = {
-    ipmEvent: { base: { fg: '#ff8000', fgLight: '#a65300' }, alias: { fg: '#ff8000', fgLight: '#a65300' }, hasAlias: { fg: '#ffaa55', fgLight: '#b35900' }, marker: { fg: '#ff8000', fgLight: '#a65300', bold: true } },
-    ipmThing: { base: { fg: '#6fc24f', fgLight: '#2d6e1f' }, alias: { fg: '#6fc24f', fgLight: '#2d6e1f' }, hasAlias: { fg: '#82b366', fgLight: '#3c7a2a' }, marker: { fg: '#6fc24f', fgLight: '#2d6e1f', bold: true } },
-    ipmConcept: { base: { fg: '#6c8ebf', fgLight: '#1a5f9e' }, alias: { fg: '#6c8ebf', fgLight: '#1a5f9e' }, hasAlias: { fg: '#9bb4d6', fgLight: '#2877bd' }, marker: { fg: '#6c8ebf', fgLight: '#1a5f9e', bold: true } },
-    ipmArrow: { base: { fg: '#d4d4d4', fgLight: '#404040', bold: true }, leadsTo: { fg: '#ff8000', fgLight: '#a65300', bold: true }, partOf: { fg: '#6fc24f', fgLight: '#2d6e1f', bold: true }, expresses: { fg: '#6c8ebf', fgLight: '#1a5f9e', bold: true }, nearTo: { fg: '#aaaaaa', fgLight: '#6b6b6b', bold: true } },
-    ipmTypeMarker: { base: { fg: '#b08fff', fgLight: '#7e57c2' } },
-    ipmRelation: { base: { fg: '#b08fff', fgLight: '#7e57c2' } },
-    ipmComment: { base: { fg: '#8c8c8c', fgLight: '#6b6b6b', italic: true } },
-    ipmString: { base: { fg: '#ce9178', fgLight: '#a31515' } },
-    ipmTooltip: { base: { fg: '#b58900', fgLight: '#8a6d00', italic: true } },
-    ipmUnresolved: { base: { fg: '#8a8a8a', fgLight: '#767676' } },
+    ipmEvent: { base: { fg: '#ff8000', fgLight: '#ff8000' }, alias: { fg: '#ffaa55', fgLight: '#ffaa55' }, hasAlias: { fg: '#ff8000', fgLight: '#ff8000' }, marker: { fg: '#ff8000', fgLight: '#ff8000', bold: true } },
+    ipmThing: { base: { fg: '#6fc24f', fgLight: '#4d8a3a' }, alias: { fg: '#82b366', fgLight: '#82b366' }, hasAlias: { fg: '#6fc24f', fgLight: '#4d8a3a' }, marker: { fg: '#6fc24f', fgLight: '#4d8a3a', bold: true } },
+    ipmConcept: { base: { fg: '#6c8ebf', fgLight: '#6c8ebf' }, alias: { fg: '#9bb4d6', fgLight: '#7f9dc9' }, hasAlias: { fg: '#6c8ebf', fgLight: '#6c8ebf' }, marker: { fg: '#6c8ebf', fgLight: '#6c8ebf', bold: true } },
+    ipmArrow: { base: { fg: '#d4d4d4', fgLight: '#404040', bold: true }, leadsTo: { fg: '#ff8000', fgLight: '#ff8000', bold: true }, partOf: { fg: '#6fc24f', fgLight: '#4d8a3a', bold: true }, expresses: { fg: '#6c8ebf', fgLight: '#6c8ebf', bold: true }, nearTo: { fg: '#aaaaaa', fgLight: '#aaaaaa', bold: true } },
+    ipmTypeMarker: { base: { fg: '#b08fff', fgLight: '#b08fff' } },
+    ipmRelation: { base: { fg: '#b08fff', fgLight: '#b08fff' } },
+    ipmComment: { base: { fg: '#8c8c8c', fgLight: '#808080', italic: true } },
+    ipmString: { base: { fg: '#ce9178', fgLight: '#ce9178' } },
+    ipmTooltip: { base: { fg: '#b58900', fgLight: '#b58900', italic: true } },
+    ipmUnresolved: { base: { fg: '#8a8a8a', fgLight: '#8a8a8a' } },
 };
 
 // CLASS_SUFFIX maps a dotted rule name (`ipmEvent.alias`) or a bare type
