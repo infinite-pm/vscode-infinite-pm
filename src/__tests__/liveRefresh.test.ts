@@ -590,7 +590,7 @@ test('SingleFlight runs one task at a time and coalesces the rest', async () => 
 });
 
 test('SingleFlight keys are independent per document', () => {
-    const flight = new SingleFlight();
+    const flight = new SingleFlight(() => 0);
     const started: string[] = [];
     const blocked = (label: string) => () => {
         started.push(label);
@@ -604,7 +604,13 @@ test('SingleFlight keys are independent per document', () => {
 test('SingleFlight releases the key when a task rejects', async () => {
     // A failed embedBuffer (server crash mid-request) must not wedge the
     // token path for the rest of the session.
-    const flight = new SingleFlight();
+    //
+    // The clock is frozen. With the real clock a rejection that took 1ms of
+    // wall time (a busy machine) earned a 1ms cooldown, the next run was
+    // parked behind it, and this test failed about one run in eight under
+    // load. The cooldown has tests of its own below; this one is about the
+    // key being released.
+    const flight = new SingleFlight(() => 0);
     let ran = 0;
     flight.run('a.md', () => Promise.reject(new Error('connection got disposed')));
     await new Promise(resolve => setImmediate(resolve));
