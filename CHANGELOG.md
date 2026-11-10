@@ -1,12 +1,45 @@
 # Changelog
 
-## 0.5.1
+## 0.6.0 — 2026-11-10
+
+The first release since 0.4.3. Versions 0.5.0 and 0.5.1 were local builds and
+were not published; their notes are below.
+
+### Breaking
+
+- **An unmarked ipmt node is now an event.** A thing needs `::t`, a concept
+  `::c`; `::e` is optional. Diagrams written for 0.4.x still open, but each
+  unmarked thing is read as an event until it is marked, and its arrows change
+  relation. `ipmt-migrate` in ipm-tools adds the `::t` for you, once: see the
+  [ipm-tools 0.6.0 notes](https://github.com/infinite-pm/ipm-tools/blob/main/CHANGELOG.md).
+- **VS Code 1.140 or newer is needed** (it was 1.82). An older VS Code keeps 0.4.3.
+
+### Changed
+
+- The whole node, title included, is coloured by its kind (event orange, thing
+  green, concept blue). In a light theme the colours are those of the diagrams,
+  so the source looks like the picture beside it. See the
+  README section "Colours".
+- The bundled language server is ipm-tools 0.6.0.
+
+### Fixed
+
+- A burst of `.ipmt` changes costs one scan of the workspace, and changes under
+  generated trees (`temp/`, `out/`, `dist/`, `node_modules/`, the new
+  `ipm.embedIgnore`) cost none. The names are matched below the workspace
+  folder, so a workspace that itself lives under `/tmp` or `~/build` is not
+  taken for one.
+- The bundled language server has the token changes the 0.5.1 colours rely on (a
+  quoted node title takes its node's kind colour). The 0.5.1 local build bundled
+  an older server.
+
+## 0.5.1 — 2026-10-26 (local build, not published)
 
 ### Changed
 
 - Colours: the whole node, title included, is coloured by kind (event orange, thing green, concept blue), in TextMate fallback and semantic mode; accessible light/dark values. A quoted title no longer takes the theme's string colour, an unmarked node is an event, and semantic highlighting is on by default for ipmt and markdown. The quote characters of a title no longer take the bracket-pair colour (red at the edges): `"` is no longer declared as a bracket, but still auto-closes and surrounds. See the README section "Colours".
 
-## 0.5.0 — 2026-10-26
+## 0.5.0 — 2026-10-26 (local build, not published)
 
 ### Changed
 
